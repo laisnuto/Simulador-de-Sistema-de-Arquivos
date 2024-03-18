@@ -69,15 +69,15 @@ void le_comando(char *comando, char *parametros[]) {
         add_history(linha);
     }
 
-    // Ignora espaços em branco no início da linha
+   
     while (*linha == ' ') {
         linha++;
     }
 
     token = strtok(linha, " ");
     if (token) {
-        strncpy(comando, token, MAX_COMMAND_LENGTH - 1); // Deixa espaço para o caractere nulo
-        comando[MAX_COMMAND_LENGTH - 1] = '\0'; // Garante que a string esteja terminada com um caractere nulo
+        strncpy(comando, token, MAX_COMMAND_LENGTH - 1);
+        comando[MAX_COMMAND_LENGTH - 1] = '\0'; 
     }
 
     while ((token = strtok(NULL, " ")) != NULL && i < MAX_PARAMETERS) {
@@ -98,9 +98,8 @@ int main() {
         exibe_prompt();
         le_comando(comando, parametros);
 
-        printf("Comando: '%s'\n", comando);
         print_parameters(parametros);
-    
+
         if (strcmp(comando, "cd") == 0) {
             change_directory(parametros[0]);
         }
