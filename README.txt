@@ -25,7 +25,7 @@ OBSERVAÇÕES:
 REFERÊNCIAS:
 Para fazer o trabalho, tive auxílio de vários sites e fóruns na internet, bem como de colegas de classe que deram dicas e ajudaram em muitas partes. Vou deixar aqui alguns os principais sites que auxiliaram no ep:
 https://www.ime.usp.br/~pf/analise_de_algoritmos/aulas/heap.html
-
+https://www.geeksforgeeks.org/round-robin-scheduling-with-different-arrival-times/
     
 
 DEPENDÊNCIAS:

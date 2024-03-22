@@ -1,24 +1,18 @@
-TARGET = newsh
+CC=gcc
 
-CC = gcc
+CFLAGS=-Wall -pthread
 
-CFLAGS = -Wall
-LDFLAGS = -lreadline
+EXEC=ep1
 
-SOURCES = newsh.c
+SRCS=ep1.c
+OBJS=$(SRCS:.c=.o)
 
-OBJECTS = $(SOURCES:.c=.o)
+all: $(EXEC)
 
-all: $(TARGET)
-
-$(TARGET): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c $<
+$(EXEC): $(OBJS)
+	$(CC) $(CFLAGS) -o $(EXEC) $(OBJS)
 
 clean:
-	rm -f $(TARGET) $(OBJECTS)
+	rm -f $(OBJS) $(EXEC)
 
-run: $(TARGET)
-	./$(TARGET)
+ep1.o: ep1.c ep1.h
