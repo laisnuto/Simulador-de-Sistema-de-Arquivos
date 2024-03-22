@@ -2,7 +2,10 @@
 
 CircularQueue* fila_circular = NULL;
 PriorityQueue* fila_prioridade = NULL;
-pthread_mutex_t lock;
+pthread_mutex_t mtx;
+int escalonador;
+int num_processos;
+
 
 
 PriorityQueue* cria_pq(int capacidade) {
@@ -168,18 +171,28 @@ int ler_arquivo(const char *nome_arquivo, Processo *processos) {
 }
 
 void* execute_process(void* p) {
-    Processo* processo = (Processo*) p; 
-    unsigned long tempo_inicio, tempo_atual;
-    tempo_inicio = time(NULL); 
+    Processo* processo = (Processo*) p;
+    unsigned long tempo_inicio, tempo_fim, tempo_atual;
+    tempo_inicio = time(NULL);
 
    
-   while(tempo_atual - tempo_inicio < processo->dt){
+    tempo_atual = tempo_inicio;
+
+   
+    while (tempo_atual - tempo_inicio < processo->dt) {
+       
+        int consumo_cpu = 0;
+        for (int i = 0; i < 100; i++) {
+            consumo_cpu += i * i;
+        }
         tempo_atual = time(NULL);
-        tempo_atual = tempo_atual*1;
-   }
+    }
 
-    printf("Tempo total de execução do processo %s: %d segundos\n", processo->nome, processo->dt);
-
+    tempo_fim = time(NULL); 
+    processo->tr = tempo_inicio;
+    processo->tf = tempo_fim;
+    int tempo_execucao = tempo_fim - tempo_inicio;
+    printf("Tempo total de execução do processo %s: %d segundos\n", processo->nome, tempo_execucao);
 
     return NULL;
 }
@@ -187,13 +200,15 @@ void* execute_process(void* p) {
 
 void shortest_job_first(PriorityQueue* fila) {
     pthread_t threads[fila->tamanho + 1]; 
-    Processo processoAtual;
+    
 
     int i = 0;
 
     while (fila->tamanho > 0 ) {
         
-        remove_pq(fila);
+        pthread_mutex_lock(&mtx);
+        Processo processoAtual = remove_pq(fila);
+        pthread_mutex_unlock(&mtx);
         
         if (pthread_create(&threads[i], NULL, execute_process, &processoAtual)) {
             fprintf(stderr, "Erro ao cria_pqr thread\n");
@@ -219,7 +234,12 @@ void round_robin(CircularQueue* fila) {
     int count = 0;
     int QUANTUM = 1;
     while (fila->tamanho > 0) {
-        Processo processo = remove_cq(fila);
+
+        pthread_mutex_lock(&mtx);
+         Processo processo = remove_cq(fila);
+        pthread_mutex_unlock(&mtx);
+
+       
         if (processo.dt > QUANTUM) {
             processo.dt -= QUANTUM;
             insere_cq(fila, processo);
@@ -265,7 +285,7 @@ int compara_t0(const void *a, const void *b) {
 }
 
 
-void gerar_arquivo_saida(const char *nome_arquivo_saida, Processo *processos, int num_processos, int mudancas_contexto) {
+void arquivo_saida(const char *nome_arquivo_saida, Processo *processos,  int mudancas_contexto) {
     FILE *arquivo = fopen(nome_arquivo_saida, "w");
     if (!arquivo) {
         perror("Erro ao abrir o arquivo de saída");
@@ -280,6 +300,48 @@ void gerar_arquivo_saida(const char *nome_arquivo_saida, Processo *processos, in
 
     fclose(arquivo);
 }
+
+void* adiciona_fila(void *arg) {
+    Processo *processos = (Processo *) arg;
+    
+    unsigned long tempo_atual = 0;
+    int i = 0;
+     while(i < num_processos) {
+     
+        if (processos[i].t0 > tempo_atual) {
+            sleep(processos[i].t0 - tempo_atual);
+            tempo_atual = processos[i].t0;
+        }
+
+        while(i < num_processos && processos[i].t0 <= tempo_atual) {
+            if (escalonador == 1) { 
+                processos[i].prioridade = processos[i].dt;
+                pthread_mutex_lock(&mtx);
+                insere_pq(fila_prioridade, processos[i]);
+                pthread_mutex_unlock(&mtx);
+               
+            } else if (escalonador == 2) { 
+                pthread_mutex_lock(&mtx);
+                insere_cq(fila_circular, processos[i]); 
+                pthread_mutex_unlock(&mtx);
+                
+            }
+            else if (escalonador == 3) { 
+                processos[i].prioridade = processos[i].deadline;
+                pthread_mutex_lock(&mtx);
+                insere_cq(fila_circular, processos[i]);
+                pthread_mutex_unlock(&mtx);
+                
+            }
+            i++;
+        }
+ 
+    }
+
+    return NULL;
+}
+
+
 
 void imprime_cq(CircularQueue *queue) {
     if (queue == NULL || queue->tamanho == 0) {
@@ -346,60 +408,44 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    int escalonador = atoi(argv[1]);
+    escalonador = atoi(argv[1]);
     const char *nome_arquivo_entrada = argv[2];
     const char *nome_arquivo_saida = argv[3];
 
     Processo processos[100]; 
-    int num_processos;
 
     num_processos = ler_arquivo(nome_arquivo_entrada, processos);
 
   
     fila_circular = cria_cq(num_processos);
     fila_prioridade = cria_pq(num_processos);
-    
-
-    insere_e_imprime_pq(fila_prioridade, processos, num_processos);
-
-
-    insere_imprime_e_rotaciona_cq(fila_circular, processos, num_processos);
 
     qsort(processos, num_processos, sizeof(Processo), compara_t0);
 
-    unsigned long tempo_atual = 0;
-    int i = 0;
-    while(i < num_processos) {
-     
-        if (processos[i].t0 > tempo_atual) {
-            sleep(processos[i].t0 - tempo_atual);
-            tempo_atual = processos[i].t0;
-        }
+    pthread_t thread_adicionar_fila;
+    pthread_mutex_init(&mtx, NULL);
 
-        while(i < num_processos && processos[i].t0 <= tempo_atual) {
-            if (escalonador == 1) { 
-                processos[i].prioridade = processos[i].dt;
-                insere_pq(fila_prioridade, processos[i]);
-            } else if (escalonador == 2) { 
-                insere_cq(fila_circular, processos[i]); 
-            }
-            else if (escalonador == 3) { 
-                processos[i].prioridade = processos[i].deadline;
-                insere_cq(fila_circular, processos[i]);
-            }
-            i++;
-        }
-
-        if (escalonador == 1) { 
-            shortest_job_first(fila_prioridade);
-        } else if (escalonador == 2) { 
-            round_robin(fila_circular);
-        } else if (escalonador == 3) { 
-            escalonamento_com_prioridade(fila_circular);
-        }
-       
-        gerar_arquivo_saida(nome_arquivo_saida, processos, num_processos, 0);
+   
+    if(pthread_create(&thread_adicionar_fila, NULL, adiciona_fila, (void*)processos)) {
+        fprintf(stderr, "Erro ao criar thread de monitoramento\n");
+        return EXIT_FAILURE;
     }
+
+    if (escalonador == 1) { 
+        shortest_job_first(fila_prioridade);
+    } else if (escalonador == 2) { 
+        round_robin(fila_circular);
+    } else if (escalonador == 3) { 
+        escalonamento_com_prioridade(fila_circular);
+    }
+
+    pthread_join(thread_adicionar_fila, NULL);
+
+    arquivo_saida(nome_arquivo_saida, processos, 0);
+    
+    pthread_mutex_destroy(&mtx);
+    destroi_cq(fila_circular);
+    destroi_pq(fila_prioridade);
 
 
 

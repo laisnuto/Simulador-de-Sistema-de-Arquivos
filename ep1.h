@@ -54,4 +54,4 @@ void* execute_process(void *p);
 void shortest_job_first(PriorityQueue* fila);
 void round_robin(CircularQueue* fila) ;
 void escalonamento_com_prioridade(CircularQueue* fila);
-void gerar_arquivo_saida(const char *nome_arquivo_saida, Processo *processos, int num_processos, int mudancas_contexto);
+void arquivo_saida(const char *nome_arquivo_saida, Processo *processos, int mudancas_contexto);
