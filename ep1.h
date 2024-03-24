@@ -11,6 +11,7 @@ typedef struct {
     int t0;
     int dt;
     int prioridade;
+    int quantum;
     int tr;
     int tf;
 } Processo;
@@ -51,7 +52,7 @@ void rotaciona_cq(CircularQueue *queue);
 
 int ler_arquivo(const char *nome_arquivo, Processo *processos);
 void* execute_process(void *p); 
-void shortest_job_first(PriorityQueue* fila);
-void round_robin(CircularQueue* fila) ;
-void escalonamento_com_prioridade(CircularQueue* fila);
+void shortest_job_first();
+void round_robin() ;
+void escalonamento_com_prioridade();
 void arquivo_saida(const char *nome_arquivo_saida, Processo *processos, int mudancas_contexto);

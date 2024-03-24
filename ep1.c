@@ -5,6 +5,7 @@ PriorityQueue* fila_prioridade = NULL;
 pthread_mutex_t mtx;
 int escalonador;
 int num_processos;
+int ultimo_processo_foi_executado = -1;
 
 
 
@@ -176,103 +177,189 @@ void* execute_process(void* p) {
     tempo_inicio = time(NULL);
 
    
-    tempo_atual = tempo_inicio;
-
    
-    while (tempo_atual - tempo_inicio < processo->dt) {
-       
-        int consumo_cpu = 0;
-        for (int i = 0; i < 100; i++) {
-            consumo_cpu += i * i;
-        }
-        tempo_atual = time(NULL);
-    }
+    tempo_atual = tempo_inicio;
+    printf("Executando processo %s... \n", processo->nome);
 
+
+    if (escalonador == 1) {
+        while (tempo_atual - tempo_inicio < processo->dt) {
+       
+            int consumo_cpu = 0;
+            for (int i = 0; i < 1000; i++) {
+                consumo_cpu += i * i;
+            }
+            tempo_atual = time(NULL);
+        }
+    } 
+    else if (escalonador == 2) {
+       
+        while (tempo_atual - tempo_inicio < processo->quantum || tempo_atual - tempo_inicio < processo->dt) {
+            int consumo_cpu = 0;
+            for (int i = 0; i < 100 && processo->dt > 0; i++) {
+                consumo_cpu += i * i;
+            }
+            tempo_atual = time(NULL);
+
+    
+        }
+
+        processo->dt = processo->dt - processo->quantum;
+
+        if (processo->dt > 0) {
+            pthread_mutex_lock(&mtx);
+            insere_cq(fila_circular, *processo);
+            pthread_mutex_unlock(&mtx);
+           
+            
+            pthread_exit(NULL);
+        }
+    }
+    else if (escalonador == 3) {
+         while (tempo_atual - tempo_inicio < processo->quantum || tempo_atual - tempo_inicio < processo->dt) {
+            int consumo_cpu = 0;
+            for (int i = 0; i < 100 && processo->dt > 0; i++) {
+                consumo_cpu += i * i;
+            }
+            tempo_atual = time(NULL);
+        }
+
+        pthread_mutex_lock(&mtx);
+        processo->dt = processo->dt - processo->quantum;
+        pthread_mutex_unlock(&mtx);
+
+        if (processo->dt > 0) {
+            pthread_mutex_lock(&mtx);
+            insere_cq(fila_circular, *processo);
+            printf("Processo %s interrompido e reinserido na fila\n", processo->nome);
+            printf("Quantum: %d\n", processo->quantum);
+            printf("Dt: %d\n", processo->dt);
+            pthread_mutex_unlock(&mtx);
+           
+            printf("Processo %s interrompido e reinserido na fila\n", processo->nome);
+            pthread_exit(NULL);
+        }
+    
+    }
+   
+
+
+    ultimo_processo_foi_executado = 1;
     tempo_fim = time(NULL); 
-    processo->tr = tempo_inicio;
-    processo->tf = tempo_fim;
-    int tempo_execucao = tempo_fim - tempo_inicio;
-    printf("Tempo total de execução do processo %s: %d segundos\n", processo->nome, tempo_execucao);
+    processo->tf = tempo_fim; 
+    processo->tr = processo->tf - processo->t0;
+    unsigned long tempo_execucao = tempo_fim - tempo_inicio;
+    printf("Tempo total de execução do processo %s: %lu segundos\n", processo->nome, tempo_execucao);
 
     return NULL;
 }
 
 
-void shortest_job_first(PriorityQueue* fila) {
-    pthread_t threads[fila->tamanho + 1]; 
+void shortest_job_first() {
+    pthread_t thread;
+    int total_processos_executados = 0;
     
 
-    int i = 0;
-
-    while (fila->tamanho > 0 ) {
-        
+    while (1) {
         pthread_mutex_lock(&mtx);
-        Processo processoAtual = remove_pq(fila);
+        if (fila_prioridade->tamanho == 0) {
+            pthread_mutex_unlock(&mtx);
+            if (total_processos_executados == num_processos) {
+                break; 
+            }
+            continue;
+        }
+
+        Processo processo_atual = remove_pq(fila_prioridade);
         pthread_mutex_unlock(&mtx);
-        
-        if (pthread_create(&threads[i], NULL, execute_process, &processoAtual)) {
-            fprintf(stderr, "Erro ao cria_pqr thread\n");
+        printf("Processo %s removido da fila de prioridade\n", processo_atual.nome);
+
+        if (pthread_create(&thread, NULL, execute_process, &processo_atual)) {
+            fprintf(stderr, "Erro ao criar thread\n");
             exit(EXIT_FAILURE);
         }
 
-        i++;
-
-       
-        pthread_join(threads[i], NULL);
-        
+        pthread_join(thread, NULL); 
+        total_processos_executados++;
     }
 
+  
    
    
 }
 
 
 // Função para o escalonador Round-Robin
-void round_robin(CircularQueue* fila) {
-    pthread_t threads[fila->capacidade];
+void round_robin() {
+    pthread_t thread;
+    int total_processos_executados = 0;
 
-    int count = 0;
-    int QUANTUM = 1;
-    while (fila->tamanho > 0) {
-
+    while (1) {
+        
         pthread_mutex_lock(&mtx);
-         Processo processo = remove_cq(fila);
-        pthread_mutex_unlock(&mtx);
-
-       
-        if (processo.dt > QUANTUM) {
-            processo.dt -= QUANTUM;
-            insere_cq(fila, processo);
-        } else {
-            processo.dt = QUANTUM; 
+        if (fila_circular->tamanho == 0) {
+            pthread_mutex_unlock(&mtx);
+            if (total_processos_executados == num_processos) {
+                break; 
+            }
+            continue;
         }
 
-        if (pthread_create(&threads[count++], NULL, execute_process, (void*)&processo)) {
+        Processo processo_atual = remove_cq(fila_circular);
+        pthread_mutex_unlock(&mtx);
+        printf("Processo %s removido da fila \n", processo_atual.nome);
+        ultimo_processo_foi_executado = 0;
+
+        if (pthread_create(&thread, NULL, execute_process, &processo_atual)) {
             fprintf(stderr, "Erro ao criar thread\n");
             exit(EXIT_FAILURE);
         }
 
-        pthread_join(threads[count-1], NULL);
+        pthread_join(thread, NULL); 
+
+        if(ultimo_processo_foi_executado == 1) {
+            total_processos_executados++;
+        }
+       
     }
+
+
 }
 
 // Função para o escalonador com prioridade
-void escalonamento_com_prioridade(CircularQueue* fila) {
-    pthread_t threads[fila->capacidade];
+void escalonamento_com_prioridade() {
+  
+    pthread_t thread;
+    int total_processos_executados = 0;
 
-    int count = 0;
-    int QUANTUM = 1;
-    while (fila->tamanho > 0) {
-        Processo processo = remove_cq(fila);
-        processo.dt = QUANTUM; 
+    while (1) {
+        
+        pthread_mutex_lock(&mtx);
+        if (fila_circular->tamanho == 0) {
+            pthread_mutex_unlock(&mtx);
+            if (total_processos_executados == num_processos) {
+                break; 
+            }
+            continue;
+        }
 
-        if (pthread_create(&threads[count++], NULL, execute_process, (void*)&processo)) {
+        Processo processo_atual = remove_cq(fila_circular);
+        pthread_mutex_unlock(&mtx);
+        printf("Processo %s removido da fila \n", processo_atual.nome);
+       
+        ultimo_processo_foi_executado = 0;
+
+        if (pthread_create(&thread, NULL, execute_process, &processo_atual)) {
             fprintf(stderr, "Erro ao criar thread\n");
             exit(EXIT_FAILURE);
         }
 
-      
-        pthread_join(threads[count-1], NULL);
+        pthread_join(thread, NULL); 
+
+        if(ultimo_processo_foi_executado == 1) {
+            total_processos_executados++;
+        }
+       
     }
 }
 
@@ -293,52 +380,12 @@ void arquivo_saida(const char *nome_arquivo_saida, Processo *processos,  int mud
     }
 
     for (int i = 0; i < num_processos; i++) {
-        fprintf(arquivo, "%s %d %d\n", processos[i].nome, processos[i].t0, processos[i].dt);
+        fprintf(arquivo, "%s %d %d\n", processos[i].nome, processos[i].tr, processos[i].tf);
     }
 
     fprintf(arquivo, "%d\n", mudancas_contexto);
 
     fclose(arquivo);
-}
-
-void* adiciona_fila(void *arg) {
-    Processo *processos = (Processo *) arg;
-    
-    unsigned long tempo_atual = 0;
-    int i = 0;
-     while(i < num_processos) {
-     
-        if (processos[i].t0 > tempo_atual) {
-            sleep(processos[i].t0 - tempo_atual);
-            tempo_atual = processos[i].t0;
-        }
-
-        while(i < num_processos && processos[i].t0 <= tempo_atual) {
-            if (escalonador == 1) { 
-                processos[i].prioridade = processos[i].dt;
-                pthread_mutex_lock(&mtx);
-                insere_pq(fila_prioridade, processos[i]);
-                pthread_mutex_unlock(&mtx);
-               
-            } else if (escalonador == 2) { 
-                pthread_mutex_lock(&mtx);
-                insere_cq(fila_circular, processos[i]); 
-                pthread_mutex_unlock(&mtx);
-                
-            }
-            else if (escalonador == 3) { 
-                processos[i].prioridade = processos[i].deadline;
-                pthread_mutex_lock(&mtx);
-                insere_cq(fila_circular, processos[i]);
-                pthread_mutex_unlock(&mtx);
-                
-            }
-            i++;
-        }
- 
-    }
-
-    return NULL;
 }
 
 
@@ -399,7 +446,62 @@ void insere_imprime_e_rotaciona_cq(CircularQueue *cq, Processo *processos, int n
     }
 }
 
+int calcular_quantum_inicial(int deadline) {
+    return deadline / 10;
 
+}
+
+void* adiciona_fila(void *arg) {
+    Processo *processos = (Processo *) arg;
+
+
+    unsigned long tempo_atual = 0;
+    int i = 0;
+    
+    while(i < num_processos) {
+
+       
+     
+        if (processos[i].t0 > tempo_atual) {
+            sleep(processos[i].t0 - tempo_atual);
+            tempo_atual = processos[i].t0;
+        }
+
+     
+
+        pthread_mutex_lock(&mtx);
+        while(i < num_processos && processos[i].t0 <= tempo_atual) {
+
+            if (escalonador == 1) { 
+                processos[i].prioridade = processos[i].dt;
+               
+                insere_pq(fila_prioridade, processos[i]);
+               
+               
+            } else if (escalonador == 2) { 
+                processos[i].quantum = 1;
+                insere_cq(fila_circular, processos[i]); 
+               
+                
+            }
+            else if (escalonador == 3) { 
+                processos[i].quantum = calcular_quantum_inicial(processos[i].deadline);  
+                insere_cq(fila_circular, processos[i]);
+               
+                
+            }
+            i++;
+        }
+
+        pthread_mutex_unlock(&mtx);
+
+       
+ 
+    }
+
+
+    return NULL;
+}
 
 
 int main(int argc, char *argv[]) {
@@ -432,11 +534,11 @@ int main(int argc, char *argv[]) {
     }
 
     if (escalonador == 1) { 
-        shortest_job_first(fila_prioridade);
+        shortest_job_first();
     } else if (escalonador == 2) { 
-        round_robin(fila_circular);
+        round_robin();
     } else if (escalonador == 3) { 
-        escalonamento_com_prioridade(fila_circular);
+        escalonamento_com_prioridade();
     }
 
     pthread_join(thread_adicionar_fila, NULL);
