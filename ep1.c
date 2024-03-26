@@ -162,7 +162,7 @@ int ler_arquivo(const char *nome_arquivo, Processo *processos) {
     }
 
     int n = 0;
-    while (fscanf(arquivo, "%16s %d %d %d", processos[n].nome, &processos[n].deadline, &processos[n].t0, &processos[n].dt) == 4) {
+    while (fscanf(arquivo, "%16s %lf %lf %lf", processos[n].nome, &processos[n].deadline, &processos[n].t0, &processos[n].dt) == 4) {
         n++;
     }
 
@@ -171,16 +171,42 @@ int ler_arquivo(const char *nome_arquivo, Processo *processos) {
     return n;
 }
 
+
+
+// void atualiza_quantum(Processo *processo, int tempo_total_restante, int tempo_atual, int num_processos_ativos) {
+//     if (num_processos_ativos <= 0) return;
+
+    
+//     int urgencia = processo->deadline - processo->tf; 
+//     if (urgencia < 0) urgencia = 0; 
+
+   
+   
+//     double proporcao_trabalho = (double)processo->dt / (double)tempo_total_restante;
+ 
+//     int quantum_base = 5; // Quantum base, ajuste conforme necessário
+//     double fator_urgencia = 1.0 + (double)urgencia / (double)processo->deadline; // Fator de urgência (>1 se urgente, ~1 se não)
+//     double quantum_ajustado = quantum_base * fator_urgencia * proporcao_trabalho;
+    
+//     // Certifica-se de que o quantum ajustado é pelo menos 1 e não mais do que o dt restante do processo
+//     if (quantum_ajustado < 1) quantum_ajustado = 1;
+//     if (quantum_ajustado > processo->dt) quantum_ajustado = processo->dt;
+
+//     processo->quantum = (int)round(quantum_ajustado); // Atualiza o quantum do processo
+// }
+
+
+
 void* execute_process(void* p) {
     Processo* processo = (Processo*) p;
-    unsigned long tempo_inicio, tempo_fim, tempo_atual;
+    double tempo_inicio, tempo_fim, tempo_atual;
     tempo_inicio = time(NULL);
 
    
    
     tempo_atual = tempo_inicio;
     printf("Executando processo %s... \n", processo->nome);
-
+    // atualiza_quantum(processo, tempo_total_restante, tempo_atual, num_processos_ativos);
 
     if (escalonador == 1) {
         while (tempo_atual - tempo_inicio < processo->dt) {
@@ -194,7 +220,7 @@ void* execute_process(void* p) {
     } 
     else if (escalonador == 2) {
        
-        while (tempo_atual - tempo_inicio < processo->quantum || tempo_atual - tempo_inicio < processo->dt) {
+        while (tempo_atual - tempo_inicio < processo->quantum && tempo_atual - tempo_inicio < processo->dt) {
             int consumo_cpu = 0;
             for (int i = 0; i < 100 && processo->dt > 0; i++) {
                 consumo_cpu += i * i;
@@ -204,11 +230,18 @@ void* execute_process(void* p) {
     
         }
 
+        printf("Tempo atual: %f\n", tempo_atual);
+        printf("tempo inicio: %f\n", tempo_inicio);
+
+
         processo->dt = processo->dt - processo->quantum;
 
         if (processo->dt > 0) {
             pthread_mutex_lock(&mtx);
             insere_cq(fila_circular, *processo);
+            printf("Processo %s interrompido depois de ser executado por %.2f segundos e, então, reinserido na fila\n", processo->nome, tempo_atual - tempo_inicio);
+            printf("Quantum: %f\n", processo->quantum);
+            printf("Dt: %f\n", processo->dt);
             pthread_mutex_unlock(&mtx);
            
             
@@ -230,10 +263,11 @@ void* execute_process(void* p) {
 
         if (processo->dt > 0) {
             pthread_mutex_lock(&mtx);
+            // atualiza_quantum();
             insere_cq(fila_circular, *processo);
-            printf("Processo %s interrompido e reinserido na fila\n", processo->nome);
-            printf("Quantum: %d\n", processo->quantum);
-            printf("Dt: %d\n", processo->dt);
+            printf("Processo %s interrompido depois de ser executado por %.2f segundos e, então, reinserido na fila\n", processo->nome, tempo_atual - tempo_inicio);
+            printf("Quantum: %f\n", processo->quantum);
+            printf("Dt: %f\n", processo->dt);
             pthread_mutex_unlock(&mtx);
            
             printf("Processo %s interrompido e reinserido na fila\n", processo->nome);
@@ -245,10 +279,11 @@ void* execute_process(void* p) {
 
 
     ultimo_processo_foi_executado = 1;
-    tempo_fim = time(NULL); 
+    tempo_fim = (double)time(NULL); 
     processo->tf = tempo_fim; 
     processo->tr = processo->tf - processo->t0;
     unsigned long tempo_execucao = tempo_fim - tempo_inicio;
+    
     printf("Tempo total de execução do processo %s: %lu segundos\n", processo->nome, tempo_execucao);
 
     return NULL;
@@ -380,7 +415,7 @@ void arquivo_saida(const char *nome_arquivo_saida, Processo *processos,  int mud
     }
 
     for (int i = 0; i < num_processos; i++) {
-        fprintf(arquivo, "%s %d %d\n", processos[i].nome, processos[i].tr, processos[i].tf);
+        fprintf(arquivo, "%s %f %f\n", processos[i].nome, processos[i].tr, processos[i].tf);
     }
 
     fprintf(arquivo, "%d\n", mudancas_contexto);
@@ -399,7 +434,7 @@ void imprime_cq(CircularQueue *queue) {
     printf("Fila Circular: \n");
     for (int i = 0, pos = queue->frente; i < queue->tamanho; i++, pos = (pos + 1) % queue->capacidade) {
         Processo p = queue->processos[pos];
-        printf("Nome: %s, Deadline: %d, t0: %d, dt: %d\n", p.nome, p.deadline, p.t0, p.dt);
+        printf("Nome: %s, Deadline: %f, t0: %f, dt: %f\n", p.nome, p.deadline, p.t0, p.dt);
     }
     printf("\n");
 }
@@ -413,7 +448,7 @@ void imprime_pq(PriorityQueue *pq) {
     printf("Fila de Prioridade: \n");
     for (int i = 0; i < pq->tamanho; i++) {
         Processo p = pq->processos[i];
-        printf("Nome: %s, Prioridade: %d, t0: %d, dt: %d\n", p.nome, p.prioridade, p.t0, p.dt);
+        printf("Nome: %s, Prioridade: %f, t0: %f, dt: %f\n", p.nome, p.prioridade, p.t0, p.dt);
     }
     printf("\n");
 }
@@ -446,16 +481,13 @@ void insere_imprime_e_rotaciona_cq(CircularQueue *cq, Processo *processos, int n
     }
 }
 
-int calcular_quantum_inicial(int deadline) {
-    return deadline / 10;
 
-}
 
 void* adiciona_fila(void *arg) {
     Processo *processos = (Processo *) arg;
 
 
-    unsigned long tempo_atual = 0;
+    double tempo_atual = 0;
     int i = 0;
     
     while(i < num_processos) {
@@ -485,7 +517,7 @@ void* adiciona_fila(void *arg) {
                 
             }
             else if (escalonador == 3) { 
-                processos[i].quantum = calcular_quantum_inicial(processos[i].deadline);  
+             
                 insere_cq(fila_circular, processos[i]);
                
                 
@@ -542,6 +574,10 @@ int main(int argc, char *argv[]) {
     }
 
     pthread_join(thread_adicionar_fila, NULL);
+
+    for (int i = 0; i < num_processos; i++) {
+        printf("Nome: %s, Deadline: %f, t0: %f, dt: %f, tr: %f, tf: %f\n", processos[i].nome, processos[i].deadline, processos[i].t0, processos[i].dt, processos[i].tr, processos[i].tf);
+    }
 
     arquivo_saida(nome_arquivo_saida, processos, 0);
     

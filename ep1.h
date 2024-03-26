@@ -4,17 +4,19 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 typedef struct {
     char nome[17];
-    int deadline;
-    int t0;
-    int dt;
-    int prioridade;
-    int quantum;
-    int tr;
-    int tf;
+    double deadline; 
+    double t0;       
+    double dt;       
+    double prioridade;
+    double quantum;  
+    double tr;
+    double tf;
 } Processo;
+
 
 
 typedef struct PriorityQueue {
