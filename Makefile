@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS=-Wall -pthread
+CFLAGS=-Wall -lpthread -D_GNU_SOURCE
 
 EXEC=ep1
 

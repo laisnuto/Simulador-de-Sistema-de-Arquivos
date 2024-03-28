@@ -5,12 +5,15 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <sys/time.h>
+#include <sched.h>
 
 typedef struct {
     char nome[17];
     double deadline; 
     double t0;       
-    double dt;       
+    double dt;
+    double tempo_restante;       
     double prioridade;
     double quantum;  
     double tr;
@@ -52,9 +55,9 @@ void rotaciona_cq(CircularQueue *queue);
 
 
 
-int ler_arquivo(const char *nome_arquivo, Processo *processos);
+int ler_arquivo(const char *nome_arquivo);
 void* execute_process(void *p); 
 void shortest_job_first();
 void round_robin() ;
 void escalonamento_com_prioridade();
-void arquivo_saida(const char *nome_arquivo_saida, Processo *processos, int mudancas_contexto);
+void arquivo_saida(const char *nome_arquivo_saida, Processo *processos);
