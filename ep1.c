@@ -280,8 +280,6 @@ void* execute_process(void* p) {
             pthread_mutex_lock(&mtx);
             insere_cq(fila_circular, *processo);
             printf("Processo %s interrompido depois de ser executado por %.2f segundos e, então, reinserido na fila\n", processo->nome, tempo_atual - tempo_inicio);
-            printf("Quantum: %f\n", processo->quantum);
-            printf("resta: %f\n", processo->tempo_restante);
             pthread_mutex_unlock(&mtx);
             pthread_exit(NULL);
         }
@@ -534,26 +532,33 @@ void* adiciona_fila(void *arg) {
     return NULL;
 }
 
-void imprime( const char* nome_arquivo_dados, Processo *processos) {
+void imprime(const char* nome_arquivo_dados, Processo *processos) {
     FILE *arquivo = fopen(nome_arquivo_dados, "w");
     if (!arquivo) {
         perror("Erro ao abrir o arquivo de dados para análise");
         exit(EXIT_FAILURE);
     }
 
-    // Cabeçalho para facilitar a importação e análise dos dados
-    fprintf(arquivo, "NomeProcesso,TempoResposta,TempoFinalizacao,MudancasContexto\n");
+    fprintf(arquivo, "NomeProcesso,TempoResposta,TempoFinalizacao\n");
+
+    int processos_dentro_deadline = 0;
 
     for (int i = 0; i < num_processos; i++) {
-        fprintf(arquivo, "%s,%.2f,%.2f,%d\n",
+        fprintf(arquivo, "%s,%.2f,%.2f\n",
                 processos[i].nome,
                 processos[i].tr, // Tempo de resposta
-                processos[i].tf, // Tempo de finalização
-                mudancas_contexto); // Supondo que `mudancas_contexto` é uma variável global ou passada de outra forma
+                processos[i].tf); // Tempo de finalização
+        if (processos[i].tf <= processos[i].deadline) {
+            processos_dentro_deadline++;
+        }
     }
+
+    fprintf(arquivo, "MudancasContexto,%d\n", mudancas_contexto);
+    fprintf(arquivo, "ProcessosDentroDeadline,%d\n", processos_dentro_deadline);
 
     fclose(arquivo);
 }
+
 
 double inicializa_tempo() {
     struct timeval agora;
@@ -607,7 +612,7 @@ int main(int argc, char *argv[]) {
 
       mudancas_contexto--;
     arquivo_saida(nome_arquivo_saida, processos);
-    imprime("dados", processos);
+    imprime("dados.txt", processos);
     
     pthread_mutex_destroy(&mtx);
     destroi_cq(fila_circular);

@@ -1,0 +1,13 @@
+NomeProcesso,TempoResposta,TempoFinalizacao
+P3,2.08,3.08
+P6,46.31,47.31
+P10,55.08,56.08
+P2,6.83,8.83
+P5,11.83,13.83
+P8,19.83,21.83
+P4,22.83,25.83
+P7,29.83,32.83
+P1,29.83,33.83
+P9,38.83,42.83
+MudancasContexto,11
+ProcessosDentroDeadline,0
