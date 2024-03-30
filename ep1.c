@@ -8,16 +8,20 @@ int escalonador;
 int num_processos;
 int mudancas_contexto = 0;
 int ultimo_processo_foi_executado = -1;
-time_t tempo_inicio_programa;
+int tempo_inicio_programa;
 
 
-double calcula_tempo_atual() {   
-    struct timeval agora;
-    gettimeofday(&agora, NULL);
-    double tempo_segundos = agora.tv_sec + agora.tv_usec / 1000000.0;
-    return tempo_segundos - tempo_inicio_programa;
 
+int inicializa_tempo() {
+    tempo_inicio_programa = time(NULL);
+    return tempo_inicio_programa;
 }
+
+int calcula_tempo_atual() {
+    time_t agora = time(NULL);
+    return (int)(agora - tempo_inicio_programa); // Calcula a diferença em segundos
+}
+
 
 PriorityQueue* cria_pq(int capacidade) {
     PriorityQueue* pq = (PriorityQueue*) malloc(sizeof(PriorityQueue));
@@ -172,7 +176,7 @@ int ler_arquivo(const char *nome_arquivo) {
     }
 
     int n = 0;
-    while (fscanf(arquivo, "%16s %lf %lf %lf", processos[n].nome, &processos[n].deadline, &processos[n].t0, &processos[n].dt) == 4) {
+    while (fscanf(arquivo, "%16s %d %d %d", processos[n].nome, &processos[n].deadline, &processos[n].t0, &processos[n].dt) == 4) {
         n++;
     }
 
@@ -194,35 +198,38 @@ void atualiza_processos(Processo* processo) {
 
 
 
- void atualiza_quantum(Processo *processo) {
+void atualiza_quantum(Processo *processo) {
+    int tempo_atual = calcula_tempo_atual();
+    int quantum_min = 1;
+    int quantum_max = 10;
+
+    int urgencia = processo->deadline - tempo_atual;
+    if (urgencia <= 0) {
+        urgencia = 1;
+    }
+
   
-    double tempo_atual = calcula_tempo_atual();
-    double quantum_min = 1;
-    double quantum_max = 10; 
-
-    double urgencia = processo->deadline - tempo_atual;
-    if (urgencia <= 0 ){
-        urgencia = 0.1;
-    }
-
+    double frac_urgencia = (double)urgencia / (processo->deadline - processo->t0);
     
-    processo->quantum = quantum_min + 1.0/urgencia;
+    int quantum = quantum_min + round((quantum_max - quantum_min) * (1 - frac_urgencia));
 
-
-   if (processo->quantum > quantum_max) {
-        processo->quantum = quantum_max;
-    } else if (processo->quantum < quantum_min) {
-        processo->quantum = quantum_min;
+   
+    if (quantum > quantum_max) {
+        quantum = quantum_max;
+    } else if (quantum < quantum_min) {
+        quantum = quantum_min;
     }
 
+    processo->quantum = quantum;
 }
+
 
 
 
 
 void* execute_process(void* p) {
     Processo* processo = (Processo*) p;
-    double tempo_inicio, tempo_atual;
+    int tempo_inicio, tempo_atual;
     tempo_inicio = calcula_tempo_atual();
 
     cpu_set_t cpuset;
@@ -279,14 +286,14 @@ void* execute_process(void* p) {
         if (processo->tempo_restante > 0) {
             pthread_mutex_lock(&mtx);
             insere_cq(fila_circular, *processo);
-            printf("Processo %s interrompido depois de ser executado por %.2f segundos e, então, reinserido na fila\n", processo->nome, tempo_atual - tempo_inicio);
+            printf("Processo %s interrompido depois de ser executado por %d segundos e, então, reinserido na fila\n", processo->nome, tempo_atual - tempo_inicio);
             pthread_mutex_unlock(&mtx);
             pthread_exit(NULL);
         }
     }
     else if (escalonador == 3) {
-         atualiza_quantum(processo);
-         while (tempo_atual - tempo_inicio < processo->quantum && tempo_atual - tempo_inicio < processo->tempo_restante) {
+        atualiza_quantum(processo);
+        while (tempo_atual - tempo_inicio < processo->quantum && tempo_atual - tempo_inicio < processo->tempo_restante) {
             int consumo_cpu = 0;
             for (int i = 0; i < 100 && processo->dt > 0; i++) {
                 consumo_cpu += i * i;
@@ -294,8 +301,7 @@ void* execute_process(void* p) {
             tempo_atual = calcula_tempo_atual();
            
         }
-
-       
+      
 
 
         pthread_mutex_lock(&mtx);
@@ -305,22 +311,18 @@ void* execute_process(void* p) {
         if (processo->tempo_restante > 0) {
             pthread_mutex_lock(&mtx);
             insere_cq(fila_circular, *processo);
-            printf("Processo %s interrompido depois de ser executado por %.2f segundos e, então, reinserido na fila\n", processo->nome, (double)(tempo_atual - tempo_inicio));
-            printf("Quantum: %f\n", processo->quantum);
-            printf("resta: %f\n", processo->tempo_restante);
+            printf("Processo %s interrompido depois de ser executado por %d segundos e, então, reinserido na fila\n", processo->nome, tempo_atual - tempo_inicio);
             pthread_mutex_unlock(&mtx);
             pthread_exit(NULL);
         }
     
     }
-   
-
 
     ultimo_processo_foi_executado = 1;
-    processo->tf = calcula_tempo_atual();
+    processo->tf = tempo_atual;
     processo->tr = processo->tf - processo->t0;
     atualiza_processos(processo);
-    printf("Tempo total de execução do processo %s: %.2f segundos\n", processo->nome, processo->dt);
+    printf("O processo %s terminou de ser executado e levou %d segundos\n", processo->nome, processo->dt);
     return NULL;
 }
 
@@ -329,7 +331,7 @@ void* execute_process(void* p) {
 void shortest_job_first() {
     pthread_t thread;
     int total_processos_executados = 0;
-    
+   
 
     while (1) {
         pthread_mutex_lock(&mtx);
@@ -364,6 +366,8 @@ void shortest_job_first() {
 void round_robin() {
     pthread_t thread;
     int total_processos_executados = 0;
+    
+
 
     while (1) {
         
@@ -402,6 +406,7 @@ void escalonamento_com_prioridade() {
   
     pthread_t thread;
     int total_processos_executados = 0;
+   
 
     while (1) {
         
@@ -451,7 +456,7 @@ void arquivo_saida(const char *nome_arquivo_saida, Processo *processos) {
     }
 
     for (int i = 0; i < num_processos; i++) {
-        fprintf(arquivo, "%s %.2f %.2f\n", processos[i].nome, processos[i].tr, processos[i].tf);
+        fprintf(arquivo, "%s %d %.d\n", processos[i].nome, processos[i].tr, processos[i].tf);
     }
 
     fprintf(arquivo, "%d\n", mudancas_contexto);
@@ -466,7 +471,7 @@ void* adiciona_fila(void *arg) {
     Processo *processos = (Processo *) arg;
 
 
-    double tempo_atual = 0;
+    int tempo_atual = 0;
 
     cpu_set_t cpuset;
     pthread_t thread;
@@ -532,41 +537,6 @@ void* adiciona_fila(void *arg) {
     return NULL;
 }
 
-void imprime(const char* nome_arquivo_dados, Processo *processos) {
-    FILE *arquivo = fopen(nome_arquivo_dados, "w");
-    if (!arquivo) {
-        perror("Erro ao abrir o arquivo de dados para análise");
-        exit(EXIT_FAILURE);
-    }
-
-    fprintf(arquivo, "NomeProcesso,TempoResposta,TempoFinalizacao\n");
-
-    int processos_dentro_deadline = 0;
-
-    for (int i = 0; i < num_processos; i++) {
-        fprintf(arquivo, "%s,%.2f,%.2f\n",
-                processos[i].nome,
-                processos[i].tr, // Tempo de resposta
-                processos[i].tf); // Tempo de finalização
-        if (processos[i].tf <= processos[i].deadline) {
-            processos_dentro_deadline++;
-        }
-    }
-
-    fprintf(arquivo, "MudancasContexto,%d\n", mudancas_contexto);
-    fprintf(arquivo, "ProcessosDentroDeadline,%d\n", processos_dentro_deadline);
-
-    fclose(arquivo);
-}
-
-
-double inicializa_tempo() {
-    struct timeval agora;
-    gettimeofday(&agora, NULL);
-    return agora.tv_sec + agora.tv_usec / 1000000.0;
-}
-
-
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
@@ -586,10 +556,11 @@ int main(int argc, char *argv[]) {
 
     qsort(processos, num_processos, sizeof(Processo), compara_t0);
 
-    tempo_inicio_programa = inicializa_tempo();
+    
     pthread_t thread_adicionar_fila;
     pthread_mutex_init(&mtx, NULL);
 
+    tempo_inicio_programa = inicializa_tempo();
    
     if(pthread_create(&thread_adicionar_fila, NULL, adiciona_fila, (void*)processos)) {
         fprintf(stderr, "Erro ao criar thread de monitoramento\n");
@@ -606,13 +577,7 @@ int main(int argc, char *argv[]) {
 
     pthread_join(thread_adicionar_fila, NULL);
 
-    for (int i = 0; i < num_processos; i++) {
-        printf("Nome: %s, Deadline: %f, t0: %f, dt: %f, tr: %f, tf: %f\n", processos[i].nome, processos[i].deadline, processos[i].t0, processos[i].dt, processos[i].tr, processos[i].tf);
-    }
-
-      mudancas_contexto--;
     arquivo_saida(nome_arquivo_saida, processos);
-    imprime("dados.txt", processos);
     
     pthread_mutex_destroy(&mtx);
     destroi_cq(fila_circular);

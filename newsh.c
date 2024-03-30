@@ -10,7 +10,6 @@ void print_parameters(char *parametros[]) {
     }
 }
 
-
 void change_directory(char *path) {
     char absolute_path[1000];
     if (realpath(path, absolute_path) == NULL) {
@@ -32,9 +31,7 @@ void remove_file(char *filename){
 
 void uname_a() {
     struct utsname info;
-
     uname(&info);
-
     printf("%s %s %s %s %s\n", info.sysname, info.nodename, info.release, info.version, info.machine);
 }
 
@@ -52,16 +49,15 @@ void exibe_prompt() {
     if (pw) {
         printf("%s [%02d:%02d:%02d]: ", pw->pw_name, tempo.tm_hour, tempo.tm_min, tempo.tm_sec);
     } else {
-        printf("unknown-user [%02d:%02d:%02d]: ", tempo.tm_hour, tempo.tm_min, tempo.tm_sec);
+        printf("[%02d:%02d:%02d]: ", tempo.tm_hour, tempo.tm_min, tempo.tm_sec);
     }
     fflush(stdout);
 }
 
 
 // Função que lê o comando e seus parâmetros
-void le_comando(char *comando, char *parametros[]) {
+void le_comando( char *parametros[]) {
     char *linha;
-    char *token;
     int i = 0;
 
     linha = readline("");
@@ -69,20 +65,12 @@ void le_comando(char *comando, char *parametros[]) {
         add_history(linha);
     }
 
-   
-    while (*linha == ' ') {
-        linha++;
-    }
-
-    token = strtok(linha, " ");
-    if (token) {
-        strncpy(comando, token, MAX_COMMAND_LENGTH - 1);
-        comando[MAX_COMMAND_LENGTH - 1] = '\0'; 
-    }
-
-    while ((token = strtok(NULL, " ")) != NULL && i < MAX_PARAMETERS) {
+    i = 0; 
+    char *token = strtok(linha, " ");
+    while (token != NULL && i < MAX_PARAMETERS) {
         parametros[i] = token;
         i++;
+        token = strtok(NULL, " ");
     }
     parametros[i] = NULL;
 }
@@ -96,19 +84,19 @@ int main() {
 
     while (1) {
         exibe_prompt();
-        le_comando(comando, parametros);
+        le_comando( parametros);
 
-        print_parameters(parametros);
+        strcpy(comando, parametros[0]);
 
         if (strcmp(comando, "cd") == 0) {
-            change_directory(parametros[0]);
+            change_directory(parametros[1]);
         }
         
         else if (strcmp(comando, "rm") == 0) {
-            remove_file(parametros[0]);
+            remove_file(parametros[1]);
         }
         
-        else if (strcmp(comando, "uname") == 0 && strcmp(parametros[0], "-a") == 0) {
+        else if (strcmp(comando, "uname") == 0 && strcmp(parametros[1], "-a") == 0) {
             uname_a();
         } 
         

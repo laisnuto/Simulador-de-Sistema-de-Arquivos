@@ -10,14 +10,14 @@
 
 typedef struct {
     char nome[17];
-    double deadline; 
-    double t0;       
-    double dt;
-    double tempo_restante;       
-    double prioridade;
-    double quantum;  
-    double tr;
-    double tf;
+    int deadline; 
+    int t0;       
+    int dt;
+    int tempo_restante;       
+    int prioridade;
+    int quantum;  
+    int tr;
+    int tf;
 } Processo;
 
 

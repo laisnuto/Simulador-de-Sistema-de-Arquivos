@@ -16,7 +16,7 @@ void change_directory(char *path);
 void remove_file(char *filename);
 void uname_a();
 void exibe_prompt();
-void le_comando(char *comando, char *parametros[]);
+void le_comando(char *parametros[]);
 
 
 
