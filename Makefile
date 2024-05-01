@@ -1,27 +1,22 @@
-CC=gcc
-CFLAGS=-Wall -D_GNU_SOURCE
-LDFLAGS=-lpthread -lreadline -lm
+CC = gcc
 
-EXEC1=ep1
-EXEC2=newsh
+CFLAGS = -Wall -lpthread
 
-SRCS1=ep1.c
-OBJS1=$(SRCS1:.c=.o)
+TARGET = ep2
 
-SRCS2=newsh.c
-OBJS2=$(SRCS2:.c=.o)
+OBJS = ep2.o
 
-all: $(EXEC1) $(EXEC2)
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
 
-$(EXEC1): $(OBJS1)
-	$(CC) -o $(EXEC1) $(OBJS1) $(CFLAGS) $(LDFLAGS)
-
-$(EXEC2): $(OBJS2)
-	$(CC) -o $(EXEC2) $(OBJS2) $(CFLAGS) $(LDFLAGS)
+ep2.o: ep2.c ep2.h
+	$(CC) $(CFLAGS) -c ep2.c
 
 clean:
-	rm -f $(OBJS1) $(EXEC1) $(OBJS2) $(EXEC2)
+	rm -f $(TARGET) $(OBJS)
 
-ep1.o: ep1.c ep1.h
+run: $(TARGET)
+	./$(TARGET) 100 20  # Example arguments, replace 100 and 20 with appropriate values
 
-newsh.o: newsh.c newsh.h
+debug: CFLAGS += -g
+debug: $(TARGET)

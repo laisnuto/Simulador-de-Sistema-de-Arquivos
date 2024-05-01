@@ -1,0 +1,159 @@
+O objetivo desse trabalho é simular uma modalidade do ciclismo em velódromos que é a corrida por eliminação, mas considerando o crit´erio Win and outra
+ Todo o código deve ser escrito em C para ser executado no GNU/Linux.
+
+Na corrida por eliminacão Win and out, ciclistas iniciam a prova ao mesmo tempo no mesmo lado
+do velodromo. A cada 2 × n voltas, com n ∈ N∗, o primeiro ciclista que completar a volta na primeira
+posicão sai da corrida e estará classificado na posicão n. Assim, o primeiro ciclista a sair ser´a o campe˜ao
+da prova, o segundo ciclista a sair ser´a o vice-campe˜ao e assim sucessivamente. 
+
+A prova termina quando o penultimo ciclista cruzar a linha de chegada, sendo que o ultimo ciclista sera o ultimo colocado.
+A simulacao deve considerar que a corrida ´e em um vel´odromo com d metros e que k ciclistas
+comec¸am a prova (100 ≤ d ≤ 2500, 5 ≤ k ≤ 5 × (d − 1)). A qualquer momento, no m´aximo,
+apenas 10 ciclistas podem estar lado a lado em cada ponto da pista. Considere que cada ciclista ocupa
+exatamente 1 metro do comprimento da pista.
+
+
+O simulador deve ser escrito em C e toda a gerˆencia de threads deve ser feita utilizando POSIX threads
+(pthreads). 
+
+Seu simulador deve criar k threads ciclista iguais. Os ciclistas largam em fila ordenados aleatori-
+amente com no máximo 5 ciclistas lado a lado em cada posicão. Todos os ciclistas fazem a primeira volta
+a 30Km/h (1m a cada 120ms) mas a partir da segunda volta cada um dos ciclistas define suas velocidades
+aleatoriamente, para realizar a volta atual, como sendo 30 ou 60Km/h (1m a cada 60ms). Caso a volta
+anterior tenha sido feita a 30Km/h, o sorteio é feito com 70% de chance de escolher 60Km/h e 30% de
+chance de escolher 30Km/h. Caso a volta anterior tenha sido feita a 60Km/h, o sorteio ´e feito com 50%
+de chance de escolher 60Km/h e 50% de chance de escolher 30Km/h. Os sorteios das velocidades deve
+ser feito de forma autˆonoma por cada thread ciclista e cada uma delas deve ser respons´avel por controlar
+quando ´e hora do ciclista avanc¸ar uma posic¸ ˜ao na pista. N˜ao pode haver uma entidade central fazendo
+
+as definic¸ ˜oes das velocidades e nem controlando qual ciclista deve se mover em um dado instante de
+forma sequencial. Todas as threads dos ciclistas devem ser capazes de rodar em paralelo, respeitando
+as restricões devido `as secões cr´ıticas no c´odigo. A ´unica tarefa de uma unidade central ´e fazer as im-
+press˜oes na tela e controlar o rel´ogio global. De forma bem gen´erica, o algoritmo a ser implementado
+seria este abaixo:
+enquanto (h´a no m´aximo 2 ciclistas na pista):
+fac¸a todos os ciclistas andarem 1 passo de forma concorrente;
+avance o relogio em 60ms;
+imprima as informacoes na tela;
+Um algoritmo como este abaixo est´a incorreto pois ele n˜ao permite que os ciclistas lidem com
+situac¸ ˜oes que tornem necess´ario lidar com sec¸ ˜oes cr´ıticas:
+# ERRADO!!!!
+enquanto (h´a no m´aximo 2 ciclistas na pista):
+para (cada ciclista i)
+fac¸a o ciclista i andar 1 passo;
+avance o rel´ogio em 60ms;
+imprima as informac¸˜oes na tela;
+# ERRADO!!!!
+
+Se a velocidade sorteada para um ciclista for de 30Km/h, todos os ciclistas que estiverem imedia-
+tamente atr´as dele na mesma linha que ele, devem pedalar a 30Km/h, independente do valor que foi
+sorteado para eles, caso n˜ao seja poss´ıvel ultrapassar. Ultrapassagens podem ser realizadas caso haja
+espac¸o em alguma pista mais externa (ultrapassagens s´o podem ser realizadas usando as pistas externas).
+Desconsidere a acelerac¸ ˜ao necess´aria para mudar de velocidade.
+Seu c´odigo deve possuir um vetor circular compartilhado pista que tem um tamanho igual a d.
+Cada posic¸ ˜ao do vetor corresponde portanto a 1 metro da pista. Em um dado instante de tempo, a posic¸ ˜ao
+i da pista deve possuir os identificadores de todos os ciclistas que est˜ao naquele trecho, ou seja, faz
+sentido criar uma matriz para representar a pista. A simulac¸ ˜ao do seu c´odigo deve simular a corrida
+em intervalos de 60ms. Cada thread ciclista tem a obrigac¸ ˜ao de escrever seu identificador na posic¸ ˜ao
+correta do vetor pista a cada momento em que ele entra em um novo trecho de 1m, e de remover seu
+identificador da posic¸ ˜ao referente ao trecho que ele acabou de sair (N˜ao ´e permitido ter uma entidade
+central no c´odigo que fac¸a essas movimentac¸ ˜oes dos ciclistas). Como ´e poss´ıvel perceber, cada posic¸ ˜ao
+do vetor (matriz) corresponde a uma vari´avel compartilhada que deve ter seu acesso controlado. Note
+que apesar de ter sorteado a velocidade de 60Km/h, pode ser que um ciclista n˜ao consiga de fato pedalar
+a essa velocidade, por exemplo, caso ele esteja na linha mais externa da pista com um ciclista pedalando
+a 30Km/h imediatamente na frente.
+Assim como no mundo real, ciclistas podem “quebrar” durante a prova e desistirem. Considere que
+a cada vez que um ciclista completa m´ultiplos de 6 voltas, ele tem a chance de 15% de quebrar. Caso
+algum ciclista quebre, essa informac¸ ˜ao deve ser exibida na tela no momento exato em que ele quebrou.
+A volta em que ele estava e o identificador dele devem ser informados. O sorteio para definir as quebras
+deve ser feito de forma autˆonoma por cada thread ciclista. N˜ao pode haver uma entidade central tomando
+essa decis˜ao.
+Toda vez que um ciclista quebrar, a thread dele deve ser destru´ıda. O mesmo deve acontecer quando
+o ciclista terminar sua participac¸ ˜ao na prova. Em casos onde mais de um ciclista passe pela linha de
+2
+chegada na primeira posic¸ ˜ao nas voltas pares, o ciclista a ser removido deve ser aleatoriamente sorteado
+dentre os que passaram ao mesmo tempo.
+A sa´ıda do seu programa deve ser um relat´orio informando a cada volta completada, as posic¸ ˜oes de
+todos os ciclistas naquela volta. Ao t´ermino da corrida (depois que o pen´ultimo ciclista passar pela linha
+de chegada), o ranqueamento final de todos os ciclistas, e o instante de tempo que cada um cruzou a linha
+de chegada pela ´ultima vez, tamb´em deve ser impresso na sa´ıda (considere que a simulac¸ ˜ao comec¸a no
+instante de tempo zero). Ciclistas que quebrarem devem ser identificados nessa lista final como tendo
+quebrado e, ao inv´es de mostrar as suas colocac¸ ˜oes, deve ser informada a volta em que eles quebraram.
+N˜ao h´a um formato padr˜ao para a sa´ıda do seu programa. Basta que ela informe tudo que foi solicitado
+aqui neste par´agrafo.
+Seu programa deve ainda permitir uma opc¸ ˜ao -debug no shell que informa a cada 60ms o status de
+cada posic¸ ˜ao da pista, ou seja, o identificador do(s) ciclista(s) naquela posic¸ ˜ao ou a informac¸ ˜ao de que
+n˜ao h´a nenhum ciclista ali. Abaixo h´a um exemplo dessa sa´ıda para uma pista de 100 metros com 20
+ciclistas por 4 iterac¸ ˜oes consecutivas (para a simulac¸ ˜ao ficar mais pr´oxima do mundo real, os ciclistas
+movem-se da direita para a esquerda, simulando o movimento anti-hor´ario para um observador no centro
+do vel´odromo direcionando o seu olhar para o pelot˜ao de ciclistas). Por limitac¸ ˜ao do tamanho da p´agina,
+apenas 50 posic¸ ˜oes da pista est˜ao sendo mostradas:
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . 6 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . 7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 1 8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 2 9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 3 10 13 . . 18 . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 4 11 14 . . 19 . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 5 12 15 16 17 20 . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 6 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 1 8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 2 9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 3 10 13 . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 4 11 14 . 19 18 . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . 5 12 15 16 17 20 . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 6 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 1 8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 2 9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 3 10 13 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 4 11 14 . 19 18 . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 5 12 15 16 17 20 . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 1 8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 2 9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . 3 10 13 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . 6 4 11 14 19 . 18 . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . 7 5 12 15 16 17 20 . . . . . . . . . . . . . . . . . . . . . . . . . . .
+Nesse caso do debug, a sa´ıda com o relat´orio de cada volta n˜ao deve ser impresso na tela, apenas o
+relat´orio final ao t´ermino da corrida.
+Com relac¸ ˜ao `a entrada, seu simulador deve receber como argumentos de linha de comando, nesta
+ordem, os dois n´umeros inteiros sem necessidade de valid´a-los:
+d k
+Lembre que seu programa ´e um simulador. Ou seja, a simulac¸ ˜ao n˜ao precisa levar o mesmo tempo
+que uma corrida de verda
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Agora preciso que você me ajude nas seguintes passos:
+1. Todos os ciclistas que estiverem imediatamente atras de um ciclista a 30km/h na mesma linha que ele, devem pedalar a 30Km/h, independente do valor que foi sorteado para eles, caso não seja possível ultrapassar. Ultrapassagens podem ser realizadas caso haja
+espaço em alguma pista mais externa (ultrapassagens s´o podem ser realizadas usando as pistas externas). Ou seja se há algum espaço nos 10 de cada linha da pista disponível para ultrapassagem
+2. A entrada na pista deve ser feita da seguinte forma, se a distancia d é 20, então o 0 é a largada e colocaremos os ciclistas de forma aleatorias nas posições imetiadamente antes da largada (no caso seria 19, 18 etc). Para ser aleatório e que tenha no máximo 5 por linha, de um sort aleatorio nos ids dos ciclistas e coloque os 5 primeiros na posição imediatamente antes da largada, depois mais 5 depois, depois mais 5 até ter posicionado todos. Assim que cada um passar da largada, se inicia a sua respectiva volta
+3. A volta dura 60 ms, quem está a 60km/h anda 1 m por volta, mas quem está há 
