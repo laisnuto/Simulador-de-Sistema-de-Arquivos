@@ -13,16 +13,85 @@ int colocacao = 1;
 int voltas_globais = 0;
 
 
+// Função para determinar a ordem dos ciclistas em uma volta
+int compara_ciclistas_volta(const void *a, const void *b) {
+    const Ciclista *ciclistaA = (const Ciclista *)a;
+    const Ciclista *ciclistaB = (const Ciclista *)b;
+
+
+    // Verifica se algum ciclista quebrou
+    if (ciclistaA->quebrado != ciclistaB->quebrado)
+        return ciclistaA->quebrado - ciclistaB->quebrado;
+
+    // Caso ambos tenham quebrado, compara pelo maior tempo de chegada
+    if (ciclistaA->quebrado && ciclistaB->quebrado)
+        return ciclistaB->tempo_chegada - ciclistaA->tempo_chegada;
+
+    // Primeiro verifica se algum ciclista terminou
+    if (ciclistaA->terminou != ciclistaB->terminou)
+        return ciclistaB->terminou - ciclistaA->terminou;
+
+    // Caso ambos tenham terminado, compara pelo menor tempo de chegada
+    if (ciclistaA->terminou && ciclistaB->terminou)
+        return ciclistaA->colocacao - ciclistaB->colocacao;
+
+    // Caso nenhum tenha terminado ou quebrado, compara pelo número de voltas
+    if (ciclistaA->voltas != ciclistaB->voltas)
+        return ciclistaB->voltas - ciclistaA->voltas;
+
+    // Se o número de voltas for igual, compara pela posição na pista
+    return ciclistaB->posicao - ciclistaA->posicao;
+}
+
+
+
+// Função para imprimir o relatório por volta
+void imprimir_relatorio_por_volta(int volta) {
+    printf("\n-------------------------------------------------------------------------------\n");
+    printf("                                RELATÓRIO POR VOLTA %d                           \n", volta);
+    printf("---------------------------------------------------------------------------------\n");
+    printf(" Colocação |  ID  | Voltas Completadas |      Status            \n");
+    printf("---------------------------------------------------------------------------------\n");
+
+    // Criar uma lista temporária para classificar os ciclistas
+    Ciclista *temp_ciclistas = malloc(k * sizeof(Ciclista));
+    memcpy(temp_ciclistas, ciclistas, k * sizeof(Ciclista));
+
+    // Classificar ciclistas para relatório
+    qsort(temp_ciclistas, k, sizeof(Ciclista), compara_ciclistas_volta);
+
+    for (int i = 0; i < k; i++) {
+        char *status = "Correndo";
+        if (temp_ciclistas[i].quebrado)
+            status = "Quebrado";
+        else if (temp_ciclistas[i].terminou)
+            status = "Terminou";
+
+        printf("     %4d   | %4d |       %4d        |      %s\n",
+               i+1, temp_ciclistas[i].id, temp_ciclistas[i].voltas, status);
+    }
+
+    free(temp_ciclistas);
+    printf("--------------------------------------------------------------------------------\n \n");
+}
+
+
 // Função para verificar e atualizar qual o número da volta do último ciclista (que é a volta global)
 void verificar_atualizar_volta_global() {
-    int min_voltas = 2*k + 2;
-    pthread_mutex_lock(&pista_mutex);
-    for (int i = 0; i < k; i++) {
-        if (!ciclistas[i].quebrado && !ciclistas[i].terminou)
-            min_voltas = fmin(min_voltas, ciclistas[i].voltas);
+     int min_voltas = 2*k + 2;
+     pthread_mutex_lock(&pista_mutex);
+     for (int i = 0; i < k; i++) {
+         if (!ciclistas[i].quebrado && !ciclistas[i].terminou)
+             min_voltas = fmin(min_voltas, ciclistas[i].voltas);
+     }
+
+     if (min_voltas > voltas_globais) {
+        voltas_globais = min_voltas;
+        if(!debug){
+          imprimir_relatorio_por_volta(voltas_globais);
+        }
     }
-    voltas_globais = min_voltas;
-    pthread_mutex_unlock(&pista_mutex);
+     pthread_mutex_unlock(&pista_mutex);
 }
 
 // Função para atualizar a velocidade do ciclista
@@ -88,18 +157,25 @@ void atualiza_pista(int id, int antiga_posicao, int nova_posicao, int antiga_lin
   
     pista[antiga_posicao].ids[antiga_linha] = -1;
     pista[nova_posicao].ids[nova_linha] = id;
-
-    printf("Ciclista %d  com id %d se moveu para a posição %d linha %d \n", id,  pista[nova_posicao].ids[nova_linha], nova_posicao, nova_linha);
   
 }
 
 // Função para verificar se o ciclista vai quebrar
 void checa_quebra(Ciclista *c) {
-    if (c->voltas > 1 && c->voltas % 6 == 0 && rand() % 100 < 15) {
-        c->quebrado = 1; 
-        c->terminou = 1;
-        c->tempo_chegada = relogio_global * 60;
-        printf("Ciclista %d quebrou na volta %d\n", c->id, c->voltas);
+
+   
+    if (c->voltas > 1 && c->voltas % 6 == 0 ) {
+
+       
+        int chance = rand() % 100;
+
+        if(chance < 15){
+            c->quebrado = 1; 
+            c->terminou = 1;
+            c->tempo_chegada = relogio_global * 60;
+            // printf("\n Ciclista %d quebrou na volta %d\n \n", c->id, c->voltas);
+        }
+       
     }
 
     pthread_mutex_lock(&pista_mutex);
@@ -161,8 +237,6 @@ void mover_ciclista(int id) {
         }
 
     }
-   
-    
      
 }
 
@@ -173,15 +247,13 @@ void mover_ciclista(int id) {
 void *ciclista_caminho(void *arg) {
     Ciclista *c = (Ciclista *)arg;
     c->velocidade = 30;
-
-    
     
     pthread_barrier_wait(&barrier);
 
     pthread_barrier_wait(&barrier);
 
 
-    while (!c->quebrado && !c->terminou && c->voltas < 2*k) {        
+    while (!c->quebrado && !c->terminou && c->voltas < 2*k && !c->pode_sair) {        
         
         pthread_mutex_lock(&pista_mutex);
         mover_ciclista(c->id);
@@ -198,11 +270,12 @@ void *ciclista_caminho(void *arg) {
 
                 if(c->rodada_de_movimento == 1){
                     c->voltas++;
+                    checa_quebra(c);
                     verificar_atualizar_volta_global();
                 }
 
 
-                checa_quebra(c);
+            
                 if (c->voltas > 1){
                     atualizar_velocidade(c);
                 } 
@@ -211,13 +284,21 @@ void *ciclista_caminho(void *arg) {
 
            
         }
-        
+
+        if(c->pode_sair){
+            break;
+        }
         pthread_barrier_wait(&barrier);
+        if(c->pode_sair){
+            break;
+        }
         pthread_barrier_wait(&barrier);
+       
     }
 
+   
     while(!c->pode_sair){
-        pthread_barrier_wait(&barrier);
+        pthread_barrier_wait(&barrier);       
     }
 
     pthread_exit(NULL);
@@ -225,7 +306,7 @@ void *ciclista_caminho(void *arg) {
 
 void print_pista() {
    
-     pthread_mutex_lock(&pista_mutex);
+    pthread_mutex_lock(&pista_mutex);
     for (int linha = 0; linha < 10; linha++) {
         for (int posicao = 0; posicao < d; posicao++) {
             if (pista[posicao].ids[linha] != -1) {
@@ -242,32 +323,25 @@ void print_pista() {
 }
 
 
-int compare_ciclistas_final(const void *a, const void *b) {
-    const Ciclista *ciclistaA = (const Ciclista *)a;
-    const Ciclista *ciclistaB = (const Ciclista *)b;
-
-    if (ciclistaA->quebrado != ciclistaB->quebrado)
-        return ciclistaA->quebrado - ciclistaB->quebrado;
-    if (!ciclistaA->quebrado && !ciclistaB->quebrado) {
-        return ciclistaA->colocacao - ciclistaB->colocacao; 
-    }
-    return ciclistaA->tempo_chegada - ciclistaB->tempo_chegada; // Ordena pelo tempo de chegada se ambos quebraram
-}
-
 
 void imprimir_relatorio_final() {
     printf("--------------------------------------------------------------------------------\n");
     printf("                                RELATÓRIO FINAL                                 \n");
     printf("--------------------------------------------------------------------------------\n");
-    printf(" Colocação | ID | Voltas Completadas | Tempo de Chegada (ms) | Status            \n");
+    printf(" Colocação |  ID  | Voltas Completadas |      Tempo de Chegada (ms)       | Status            \n");
     printf("--------------------------------------------------------------------------------\n");
 
     for (int i = 0; i < k; i++) {
         if (ciclistas[i].quebrado) {
-            printf("     --     | %2d |        %3d        |             Quebrou           | Quebrou na volta %d\n",
-                   ciclistas[i].id, ciclistas[i].voltas, ciclistas[i].voltas);
-        } else if (ciclistas[i].terminou) {
-            printf("     %2d     | %2d |        %3d        |         %6d                 | Completo          \n",
+            printf("     %4d   | %4d |       %4d        |              Quebrou             | Quebrou na volta %4d\n",
+                   ciclistas[i].colocacao, ciclistas[i].id, ciclistas[i].voltas, ciclistas[i].voltas);
+        }
+        else if (ciclistas[i].tempo_chegada == -1) {
+            printf("     %4d   | %4d |       %4d        |  Não cruzou a linha de chegada   | Completo          \n",
+                   ciclistas[i].colocacao, ciclistas[i].id, ciclistas[i].voltas);
+        }
+        else if (ciclistas[i].terminou) {
+            printf("     %4d   | %4d |       %4d        |           %8d               | Completo          \n",
                    ciclistas[i].colocacao, ciclistas[i].id, ciclistas[i].voltas, ciclistas[i].tempo_chegada);
         }
     }
@@ -276,18 +350,19 @@ void imprimir_relatorio_final() {
     printf("--------------------------------------------------------------------------------\n");
     printf("                               CICLISTAS QUEBRADOS                              \n");
     printf("--------------------------------------------------------------------------------\n");
-    printf("    ID    | Voltas Completadas | Tempo de Quebra (ms)    | Detalhes            \n");
+    printf("    ID   |    Tempo de Quebra (ms)    |      Detalhes            \n");
     printf("--------------------------------------------------------------------------------\n");
 
     for (int i = 0; i < k; i++) {
         if (ciclistas[i].quebrado) {
-            printf("    %2d    |        %3d         |          %6d          | Quebrou na volta %d \n",
-                   ciclistas[i].id, ciclistas[i].voltas, ciclistas[i].tempo_chegada, ciclistas[i].voltas);
+            printf("   %4d  |          %8d          |      Quebrou na volta %4d \n",
+                   ciclistas[i].id,  ciclistas[i].tempo_chegada, ciclistas[i].voltas);
         }
     }
 
     printf("--------------------------------------------------------------------------------\n \n");
 }
+
 
 
 
@@ -302,7 +377,7 @@ void verifica_e_remove_ciclistas() {
     }
 
     if (contagem > 0) {
-        srand(time(NULL));  
+        
         int escolhido_index = rand() % contagem; 
         int escolhido_id = ciclistas_na_frente[escolhido_index];
 
@@ -320,27 +395,6 @@ void verifica_e_remove_ciclistas() {
 }
 
 
-
-
-void print_ciclistas() {
-    printf("Dados dos Ciclistas:\n");
-
-    for (int i = 0; i < k; i++) {
-        Ciclista c = ciclistas[i];
-        printf("Ciclista %2d:    com indice i = %d \n", c.id, i+1);
-        printf("Posição: %2d   ", c.posicao);
-        printf("Velocidade: %2d km/h   ", c.velocidade);
-        printf("Move: %2d  ", c.rodada_de_movimento);
-        printf("Linha: %2d  ", c.linha);
-        printf("Voltas: %2d   " , c.voltas);
-        printf("Status: %2s   ", c.quebrado ? "Quebrado" : "Ativo");
-        printf("Terminou: %2d   ", c.terminou);
-        printf("Começou: %2d   ", c.comecou);
-        printf("\n \n");
-    }
-}
-
-
 int quantidade_de_ciclistas_na_corrida() {
     int ativos = 0;
     for (int i = 0; i < k; i++) {
@@ -348,10 +402,11 @@ int quantidade_de_ciclistas_na_corrida() {
             ativos++;
         } 
     }
+
     return ativos;
 }
 
-int compare_ciclistas(const void *a, const void *b) {
+int compara_ciclistas_por_id(const void *a, const void *b) {
     Ciclista *ciclistaA = (Ciclista *)a;
     Ciclista *ciclistaB = (Ciclista *)b;
     return ciclistaA->id - ciclistaB->id;
@@ -362,20 +417,43 @@ void acaba_corrida() {
 
     for (int i = 0; i < k; i++) {
         ciclistas[i].pode_sair = 1;      
+        
     }
 
+    for (int i = 0; i < k; i++) {
+        if(!ciclistas[i].terminou && !ciclistas[i].quebrado){
+            ciclistas[i].terminou = 1;
+            ciclistas[i].colocacao = colocacao;
+            colocacao++;
+        };      
+    }
+
+    qsort(ciclistas, k, sizeof(Ciclista), compara_ciclistas_volta);
+
+    for (int i = 0; i < k; i++) {
+        if(ciclistas[i].quebrado){
+            ciclistas[i].colocacao = colocacao;
+            colocacao++;
+        };      
+    }
+
+
+  
     imprimir_relatorio_final();
+    
      
 }
 
 void corrida() {
 
-      
     pthread_barrier_wait(&barrier);
     printf("Iniciando corrida\n");
-    print_ciclistas();
-    print_pista(); 
-    qsort(ciclistas, k, sizeof(Ciclista), compare_ciclistas);
+   
+    if (debug) {     
+       printf("Relógio global: %dms\n", relogio_global * 60);
+       print_pista();
+    }
+    qsort(ciclistas, k, sizeof(Ciclista), compara_ciclistas_por_id);
     pthread_barrier_wait(&barrier);
     
     while (quantidade_de_ciclistas_na_corrida() > 1){
@@ -390,6 +468,8 @@ void corrida() {
         relogio_global = relogio_global + 1;
         pthread_barrier_wait(&barrier);
     }
+
+    
     
     acaba_corrida();
 }
@@ -416,9 +496,6 @@ int main(int argc, char *argv[]) {
     if (argc == 4 && strcmp(argv[3], "-debug") == 0) {
         debug = 1;
     }
-
-    printf("d = %d, k = %d, debug = %d\n", d, k, debug);
-
 
     cria_pista(d);
 
@@ -477,9 +554,7 @@ int main(int argc, char *argv[]) {
 
     corrida();
 
-    for (int i = 0; i < k; i++) {
-        pthread_join(ciclistas[i].thread_id, NULL);
-    }
+    printf("Fim da corrida\n");
 
     free(ciclistas);
     return EXIT_SUCCESS;

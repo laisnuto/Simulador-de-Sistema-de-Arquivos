@@ -3,48 +3,46 @@ Laís Nuto Rossman, NºUSP 12547274, laisnuto@usp.br
 
 
 DESCRIÇÃO:
-Este trabalho consiste na implementação de um um shell para interação entre usuário e sistema operacional e um simulador de processos com diferentes tipos de algotritmos de escalonamneto.
-O principal objetivo é observar o comportamento desses algoritmos em diferentes cenários e analisar sua eficiência alocação de tempo da CPU.
+Este trabalho consiste na implementação de um simulador de uma corrida de ciclistas por eliminação
 
 
 COMO EXECUTAR:
-Primeiramente, para compilar `Makefile` que vai gerar os dois executáveis (um do newsh e outro do ep1) basta rodar no terminal o comando: make
-Depois para executar o programa, você pode executar o newsh usando o seguinte comando: ./newsh
-Por fim, para compilar o ep1, basta rodar o seguinte comando: ./ep1 <escalonador> <nome arquivo de entrada> <nome arquivo de saída>
+Primeiramente, para compilar `Makefile` que vai gerar o executável basta rodar no terminal o comando: make
+
+Por fim, para executar o ep2, basta rodar o seguinte comando: ./ep2 <tamanho da pista> <número de ciclistas> 
+
+Também é possível executar o programa com uma flag de debug para printar a pista e os ciclistas a cada rodada,
+se esse for o modo desejado, para executar basta rodar o seguinte comando: ./ep2 <tamanho da pista> <número de ciclistas> -debug
 
 
 VISÃO GERAL:
-O funcionamento geral do programa consiste em ler os argumentos de entrada e poder criar a estrutura de dados de fila que é mais apropriada de acordo com o escalonador.
-Depois disso, uma thread é criada para, paralelamente ao programa principal, poder adicionar os processos na fila no instante correto
-Enquanto os processos são adicionados na fila, os algoritmos de escalonamento começam a funcionar e selecionar processos para serem executados.
-Cada algoritmo remove o processo da fila e cria uma thread para executar esse processo. A função de executar processo depende do algoritmo escalonador. Essa função faz durante o tempo de execução operações matemáticas para poder simular o uso da CPU
-No Shortest Job Fist, a função apenas executa o processo durante o intervalo de tempo determinado (dt).
-No Round Robin, a função executa o processo durante 1 segundo (quentum) e verifica se o processo foi concluido, se sim, finaliza, se não, insere na fila novamente
-No Escalonador com prioridade, a função atualiza o valor do quantum do processo de acordo com a dealine e executa o valor do quantum (ou executa o tampo de tempo que resta para finalizar se for menor que o quantum) e verifica se o processo foi concluido, se sim, finaliza, se não, insere na fila novamente
-Esse processo de remover da fila, executar e inserir de novo (no caso dos dois últimos), fica rodando até que as filas estejam vazias e todos os processos tenham sido executados.
-Por fim, imprime as informações no arquivo de saída que o nome na linha de comando
-E então espera as threads acabarem, libera memória e acaba o programa.
+O funcionamento geral do programa consiste criar uma pista que guarda a posição atual dos ciclistas e criar uma thread para cada ciclista simular seu movimento em paralelo. Os ciclistas verificam as posições e espaços livres na psita antes de se moverem, vem como a possibilidade de ultrapassegem.
+As alterações na pista são protegidas por um mutex. Além disso, foram usadas barreiras para fazer com que esperassem todos os ciclistas se movessem uma vez para então iniciar uma nova rodada de movimento. 
+A cada 6 voltas um ciclista pode quebrar com chance de 15%, se ele quebra, ele sai da pista e vai para o final do ranking. A cada 2 voltas, o primeiro ciclista que cruzar a posição 0 termina a corrida e entra no ranking.
+Quando sobrar apenas 1 ciclista correndo, a corrida é finalizada e o ranking final é impresso
 
 TESTES:
-Os testes foram feitos de forma a tentar destacar características dos diferentes algoritmos escalonadores. Os arquivos do teste estão nesse mesmo diretório do ep (teste1, teste2 e teste3).
-- Teste 1: Esse teste tinham 10 processos em que os mais urgentes tinham menor dt. 
-- Teste 2: Esse teste tinha 15 processos mais uniformes com exceção do primeiro que tinha um maior dt
-- Teste 3: Esse teste tinha 20 processos mais aleatorizados com exceção do primeiro que tinha um maior dt 
+Os testes foram feitos em 3 tamanhos de pistas diferentes, com 3 quantidades de ciclistas diferentes, com o objetivo de verificar o desempenho de memória e tempo nos diferentes cenários
+- Teste 1: Pista de 625 metros em 3 situações: 125, 250 e 500 ciclistas
+- Teste 2: Pista de 1250 metros em 3 situações: 125, 250 e 500 ciclistas
+- Teste 3: Pista de 2500 metros em 3 situações: 125, 250 e 500 ciclistas
 
 
 OBSERVAÇÕES E DECISÕES DE PROJETO:
--O cálculo dos tempos foi feito utilizando time(NULL), pois retorna numeros inteiros. Cheguei a tentar uma abordagem usando double para poder variar mais o quantum, porém gerava processos que ultrapassavam a deadline por questões de milisegundos, portanto optei por deixar tudo inteiro para evitar esses casos que ocorrem com a precisão do tempo
--As mudanças de contexto foram calculadas a partir da quantidade de vezes que os processos mudavam, contabilizei esse evento a partir da remoção da fila, pois isso indica que um novo processo será executado, portanto foi mudado
--As diferentes estruturas de dados (fila de prioridade e fila circular) foram implementadas dependendo do tipo de escalonador para se adequar melhor as demandas de cada algoritmos
--O cálculo do quantum tinha que levar em consideração a deadline do processo, por tanto fiz uma função que retornava um quantum de 1 a 10 que era proporcial a urgência do processo (quanto mais próximo da deadline, mais urgente mais quantum). Esse caculo foi feito a partir de um fator urgência entre 0 e 1 (representado por (deadline - tempo atual)/(deadline - t0)). Assim (quantun minimo) + ((quantun minimo- quantum maximo)*(1-fator urgencia)), temos uma função linear que retorna entre o range desejado o quantum de acordo com a proximidade da deadline
--Como o quantum mínimo do escalonador com prioridade é igual a 1 segundo, que é o quantum fixo do round robin, foi visto em todos os testes uma mudança de contexto do round robin maior ou igual do que a do escalonador com prioridade, além do cumprimento de deadline do round robin ter sido em todas menor ou igual a do escalonador com prioridade. Isso pode ser explicado por essa escolha de quantuns que, no geral, faz com que o escalonador com prioridade performe migual ou melhor que o round robin
+-Cada ciclista tem sua thread indiviidual e por causa do uso de pthread barrier, decidi não destruir a thread quando finaliza a corrida ou quebra, já que isso mudaria o número de threads que travam na barreira.
+Decidi colocar na struct de ciclista "terminou" que indicaria quando um ciclista não está mais na corrida (seja porque quebrou ou porque já finalizou o percurso), e então a thread de um ciclista que já terminou fica rodando mas ela não participa ativamente da corrida pois o ciclista já oi removido da pista
+Para poder sinalizar quando os ciclistas pudessem ter suas threads destruidas, como todas as threads ficam rodando até a corrida acabar para não atrapalahar o funcionamento da barreira. 
+Cada ciclista tem um flag "pode_sair" que só é verdadeira quando a corrida termina, enquanto a corrida estiver acontecendo, quem finalizou fica presso num looping esperando os movimentos de quem está correndo, assim a corrida continua funcionando normalmente
+Dessa forma depois que finaliza a corrida, todas as threads são liberadas e não ficam mais presas nas barreiras, o programa principal acaba e finaliza, encerrando a execução de todas as threads.
+- Pra imprimir o relatório por volta, uso como referência de volta "global" a volta do último colocado correndo até o momento
+- O ponto é marca uma volta completa é quando o ciclista passa pela posição 0 que é a largada, exceto a primeira vez que ele cruza a posição 0 (pois todos iniciam em posições antes do 0, então quando eles cruzarem o 0 vai marcar que eles começaram a corrida e então na próximas vez que cruzarem, o numero de voltas será incrementado)
+- Os ciclistas se movem da esquerda para direita
 
 
 REFERÊNCIAS:
 Para fazer o trabalho, tive auxílio de vários sites e fóruns na internet, bem como de colegas de classe que deram dicas e ajudaram em muitas partes. Vou deixar aqui alguns dos principais sites que auxiliaram no ep:
-https://www.ime.usp.br/~pf/analise_de_algoritmos/aulas/heap.html
-https://www.geeksforgeeks.org/round-robin-scheduling-with-different-arrival-times/
-https://man7.org/linux/man-pages/man3/pthread_setaffinity_np.3.html
+https://gist.github.com/shelterz/4b13459668eec743f15be6c200aa91b2 (foi um exemplo de uso do pthread barrier)
+https://stackoverflow.com/questions/61647896/unknown-type-name-pthread-barrier-t (para resolver um bug que estava tendo um o ptread barrier)
     
 
 DEPENDÊNCIAS:
