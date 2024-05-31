@@ -1,23 +1,15 @@
-CC = gcc
+# Makefile
 
-CFLAGS = -Wall -lpthread -std=gnu99
-LIBS = -lm
+CC=gcc
+CFLAGS=-Wall
 
-TARGET = ep2
+all: ep3
 
-OBJS = ep2.o
+ep3: ep3.o
+	$(CC) $(CFLAGS) -o ep3 ep3.o
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
-
-ep2.o: ep2.c ep2.h
-	$(CC) $(CFLAGS) -c ep2.c
+ep3.o: ep3.c ep3.h
+	$(CC) $(CFLAGS) -c ep3.c
 
 clean:
-	rm -f $(TARGET) $(OBJS)
-
-run: $(TARGET)
-	./$(TARGET) 100 20  
-
-debug: CFLAGS += -g
-debug: $(TARGET)
+	rm -f *.o ep3

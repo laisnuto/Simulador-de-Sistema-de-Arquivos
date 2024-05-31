@@ -1,0 +1,42 @@
+AUTOR:
+Laís Nuto Rossman, NºUSP 12547274, laisnuto@usp.br
+
+
+DESCRIÇÃO:
+Este trabalho consiste na implementação de um simulador de uma corrida de ciclistas por eliminação
+
+
+COMO EXECUTAR:
+Primeiramente, para compilar `Makefile` que vai gerar o executável basta rodar no terminal o comando: make
+
+Por fim, para executar o ep2, basta rodar o seguinte comando: ./ep2 <tamanho da pista> <número de ciclistas> 
+
+Também é possível executar o programa com uma flag de debug para printar a pista e os ciclistas a cada rodada,
+se esse for o modo desejado, para executar basta rodar o seguinte comando: ./ep2 <tamanho da pista> <número de ciclistas> -debug
+
+
+VISÃO GERAL:
+O funcionamento geral do programa consiste criar uma pista que guarda a posição atual dos ciclistas e criar uma thread para cada ciclista simular seu movimento em paralelo. Os ciclistas verificam as posições e espaços livres na psita antes de se moverem, vem como a possibilidade de ultrapassegem.
+rar apenas 1 ciclista correndo, a corrida é finalizada e o ranking final é impresso
+
+TESTES:
+Os testes 
+
+
+OBSERVAÇÕES E DECISÕES DE PROJETO:
+-Cad
+
+
+REFERÊNCIAS:
+Para fazer o trabalho, tive auxílio de vários sites e fóruns na internet, bem como de colegas de classe que deram dicas e ajudaram em muitas partes. Vou deixar aqui alguns dos principais sites que auxiliaram no ep:
+
+    
+
+DEPENDÊNCIAS:
+  - Processador: i5-1135G7 2.40GHz x86_64
+  - Versão do gcc: gcc 9.4.0
+  - Sistema Operacional: Ubuntu 20.04.4 LTS 
+  - Shell: bash 5.0.17 
+  - Bibliotecas: 
+    - `lpthread` para suporte a multithreading.
+
