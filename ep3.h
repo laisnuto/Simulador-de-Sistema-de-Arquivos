@@ -12,7 +12,7 @@
 #define BLOCK_SIZE 4096 
 #define MAX_BLOCKS 25581
 #define MAX_FILES 25600
-#define MAX_FILENAME
+#define MAX_FILENAME 255
 
 typedef struct {
     char nome[255];      
@@ -20,7 +20,7 @@ typedef struct {
     time_t criado;       
     time_t modificado;   
     time_t acessado;      
-    uint32_t primeiro_bloco;
+    uint16_t primeiro_bloco;
     uint8_t eh_diretorio;     
 } Metadados;
 
