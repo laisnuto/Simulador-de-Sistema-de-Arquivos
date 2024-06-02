@@ -29,13 +29,34 @@ void le_bloco(int num_bloco, void *dados) {
     fread(dados, BLOCK_SIZE, 1, sistema_arquivos);
 }
 
+void print_binary(void *data, size_t size) {
+    unsigned char *byte = (unsigned char *)data;
+    for (size_t i = 0; i < size; i++, byte++) {
+        for (int b = 7; b >= 0; b--) {
+            printf("%c", (*byte & (1 << b)) ? '1' : '0');
+        }
+        printf(" ");  // Espaço entre cada byte para legibilidade
+    }
+    printf("\n");
+}
+
+
 void imprime_arvore(uint16_t bloco_atual, int nivel) {
+
+
+    printf("bloco_atual: %d\n", bloco_atual);
+
+    print_binary(&bloco_atual, sizeof(uint16_t));
+
     if (bloco_atual == primeiro_bloco_raiz && nivel == 0) {
         printf("/\n");  
         bloco_atual = fat.prox_bloco[bloco_atual]; 
     }
+
     
     while (bloco_atual != 0xFFFF) {
+        
+        print_binary(&bloco_atual, sizeof(uint16_t) );
         Metadados buffer;
         le_bloco(bloco_atual, &buffer);
 
@@ -49,6 +70,7 @@ void imprime_arvore(uint16_t bloco_atual, int nivel) {
         }
 
         bloco_atual = fat.prox_bloco[bloco_atual];
+          print_binary(&bloco_atual, sizeof(uint16_t) );
     }
 }
 
@@ -109,6 +131,51 @@ void escreve_metadados(uint16_t bloco_inicial, Metadados *meta) {
 }
 
 
+void escreve_metadados(uint16_t bloco_inicial, Metadados *meta) {
+    Metadados buffer[16];
+    int encontrou_espaco = 0;
+    uint16_t bloco_atual = bloco_inicial;
+    uint16_t ultimo_bloco = 0xFFFF;
+
+    while (bloco_atual != -1 && !encontrou_espaco) {
+        le_bloco(bloco_atual, &buffer);
+        for (int i = 0; i < 16; i++) {
+            if (buffer[i].primeiro_bloco == 0 && buffer[i].tamanho == 0) {  // Checa se a entrada está vazia
+                buffer[i] = *meta;  // Copia os metadados para o buffer
+                escreve_bloco(bloco_atual, &buffer);  // Escreve o buffer de volta para o disco
+                encontrou_espaco = 1;
+                break;
+            }
+        }
+        ultimo_bloco = bloco_atual;
+        bloco_atual = fat.prox_bloco[bloco_atual];
+    }
+
+    // Se nenhum espaço foi encontrado nos blocos existentes, aloca um novo bloco
+    if (!encontrou_espaco) {
+        int bloco_livre = encontrar_bloco_livre();
+        if (bloco_livre == -1) {
+            fprintf(stderr, "Não há blocos livres disponíveis.\n");
+            return;
+        }
+
+        if (ultimo_bloco != -1) {
+            fat.prox_bloco[ultimo_bloco] = bloco_livre;
+        } else {
+            bloco_inicial = bloco_livre;
+        }
+
+        bitmap.blocos_livres[bloco_livre] = 1;  // Marca o bloco como ocupado
+        memset(&buffer, 0, sizeof(buffer));  // Limpa o buffer
+        buffer[0] = *meta;  // Coloca os metadados na primeira posição
+        escreve_bloco(bloco_livre, &buffer);  // Escreve o novo bloco no disco
+    }
+
+    atualiza_fat_bitmap();  // Atualiza o bitmap e FAT no disco
+}
+
+
+
 
 int encontrar_bloco_diretorio_pai(const char *caminho) {
     int ultima_barra = -1;
@@ -146,6 +213,9 @@ int encontrar_bloco_diretorio_pai(const char *caminho) {
 
 // função que monta o sistema de arquivos, se já existir, imprime a árvore de diretórios
 void monta(char *path) {
+
+    printf("tamanho %ld", sizeof(Metadados));
+
     int tamanho_bitmap = sizeof(Bitmap);
     int tamanho_fat = sizeof(FAT);
 
@@ -161,16 +231,17 @@ void monta(char *path) {
 
         
         memset(&bitmap, 0, sizeof(Bitmap));
-        memset(&fat, 0xFF, sizeof(FAT)); 
-
+        for (int i = 0; i < MAX_BLOCKS; i++) {
+            fat.prox_bloco[i] = 0xFFFF;
+        }
         
         fwrite(&bitmap, tamanho_bitmap, 1, sistema_arquivos);
         fwrite(&fat, tamanho_fat, 1, sistema_arquivos);
 
         
         bitmap.blocos_livres[0] = 1; 
-
-        
+        fat.prox_bloco[0] = -1;
+  
         fseek(sistema_arquivos, 0, SEEK_SET);
         fwrite(&bitmap, tamanho_bitmap, 1, sistema_arquivos);
 
@@ -182,11 +253,10 @@ void monta(char *path) {
 
         printf("Sistema de arquivos criado com sucesso.\n");
        
-
     }
     
     else {
-        
+
         carrega_fat_bitmap();
         imprime_arvore(primeiro_bloco_raiz, 0);
     }
@@ -556,58 +626,66 @@ void desmonta() {
     sistema_arquivos = NULL;
 }
 
-int main() {
 
+
+int main() {
     char comando[256];
+    char param1[256], param2[256];
+
     printf("{ep3}: ");
 
-    while (fgets(comando, sizeof(comando), stdin)) {
+    while (1) {  
 
-        comando[strcspn(comando, "\n")] = '\0'; 
-        char *acao = strtok(comando, " ");
+        scanf("%s", comando);
 
-        if (strcmp(acao, "monta") == 0) {
-            monta(strtok(NULL, " "));
+        if (strcmp(comando, "monta") == 0) {
+            scanf("%s", param1);
+            monta(param1);
         }
-        else if (strcmp(acao, "desmonta") == 0) {
+        else if (strcmp(comando, "desmonta") == 0) {
             desmonta();
         }
-        else 
-
-        if (strcmp(acao, "copia") == 0) {
-            copia(strtok(NULL, " "), strtok(NULL, " "));
+        else if (strcmp(comando, "copia") == 0) {
+            scanf("%s %s", param1, param2);
+            copia(param1, param2);
         }
-        else if (strcmp(acao, "criadir") == 0) {
-            criadir(strtok(NULL, " "));
+        else if (strcmp(comando, "criadir") == 0) {
+            scanf("%s", param1);
+            criadir(param1);
         }
-        else if (strcmp(acao, "apagadir") == 0) {
-            apagadir(strtok(NULL, " "));
+        else if (strcmp(comando, "apagadir") == 0) {
+            scanf("%s", param1);
+            apagadir(param1);
         }
-        else if (strcmp(acao, "mostra") == 0) {
-            mostra(strtok(NULL, " "));
+        else if (strcmp(comando, "mostra") == 0) {
+            scanf("%s", param1);
+            mostra(param1);
         }
-        else if (strcmp(acao, "toca") == 0) {
-            toca(strtok(NULL, " "));
+        else if (strcmp(comando, "toca") == 0) {
+            scanf("%s", param1);
+            toca(param1);
         }
-        else if (strcmp(acao, "apaga") == 0) {
-            apaga(strtok(NULL, " "));
+        else if (strcmp(comando, "apaga") == 0) {
+            scanf("%s", param1);
+            apaga(param1);
         }
-        else if (strcmp(acao, "lista") == 0) {
-            lista(strtok(NULL, " "));
+        else if (strcmp(comando, "lista") == 0) {
+            scanf("%s", param1);
+            lista(param1);
         }
-        else if (strcmp(acao, "atualizadb") == 0) {
+        else if (strcmp(comando, "atualizadb") == 0) {
             atualizadb();
         }
-        else if (strcmp(acao, "busca") == 0) {
-            busca(strtok(NULL, " "));
+        else if (strcmp(comando, "busca") == 0) {
+            scanf("%s", param1);
+            busca(param1);
         }
-        else if (strcmp(acao, "status") == 0) {
+        else if (strcmp(comando, "status") == 0) {
             status();
         }
-        else if (strcmp(acao, "sai") == 0) {
+        else if (strcmp(comando, "sai") == 0) {
             break;
         }
-        
         else {
             printf("Comando desconhecido\n");
         }
@@ -615,6 +693,6 @@ int main() {
     }
 
     desmonta();
-    
+
     return 0;
 }
