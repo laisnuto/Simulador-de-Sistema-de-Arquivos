@@ -30,6 +30,8 @@ OBSERVAÇÕES E DECISÕES DE PROJETO:
 REFERÊNCIAS:
 Para fazer o trabalho, tive auxílio de vários sites e fóruns na internet, bem como de colegas de classe que deram dicas e ajudaram em muitas partes. Vou deixar aqui alguns dos principais sites que auxiliaram no ep:
 - https://www.geeksforgeeks.org/fseek-in-c-with-example/
+- https://stackoverflow.com/questions/24975928/extract-the-file-name-and-its-extension-in-c
+- https://www.geeksforgeeks.org/strtok-strtok_r-functions-c-examples/
     
 
 DEPENDÊNCIAS:

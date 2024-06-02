@@ -13,6 +13,8 @@
 #define MAX_BLOCKS 25581
 #define MAX_FILES 25600
 #define MAX_FILENAME 216
+#define MAX_METADATA_PER_BLOCK 4096/sizeof(Metadados)
+#define FAT_BITMAP_SIZE sizeof(FAT)+sizeof(Bitmap)
 
 typedef struct {
     char nome[216];      
