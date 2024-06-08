@@ -6,8 +6,6 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#include <bits/pthreadtypes.h>
-#include <time.h>
 
 #define BLOCK_SIZE 4096 
 #define MAX_BLOCKS 25581
@@ -37,6 +35,12 @@ typedef struct {
 } Bitmap;
 
 
+typedef struct No {
+    char caminho[256];
+    char nome[216];
+    struct No *prox;
+} No;
+
 // 104857600 = 1 * qtd_blocos + 2 * qtd_blocos + 4096 * qtd_blocos
 
 
@@ -50,6 +54,6 @@ void toca(char *arquivo);
 void apaga(char *arquivo);
 void lista(char *diretorio);
 void atualizadb();
-void busca(char *string);
+void busca(const char *string);
 void status();
 
