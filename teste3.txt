@@ -1,0 +1,1 @@
+Ultimo teste com arqtuivos texto nao tao grandes para ver como o sistema performa de usarmos esses arquivos de copia

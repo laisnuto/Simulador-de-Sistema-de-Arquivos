@@ -56,11 +56,12 @@ void imprime_arvore(uint16_t bloco_atual, int nivel) {
         for (int i = 0; i < MAX_METADATA_PER_BLOCK; i++) {
             
             if (metadados[i].primeiro_bloco != 0 || metadados[i].tamanho != 0) {
-                for (int j = 0; j < nivel; j++) {
-                    printf("  "); 
-                }
+               
                 // printf("%s", metadados[i].nome);
-                if (metadados[i].eh_diretorio) {
+                if (metadados[i].eh_diretorio) { 
+                    for (int j = 0; j < nivel; j++) {
+                        printf("  "); 
+                    }
                     printf("%s", metadados[i].nome);
                     printf("/ \n");
                     imprime_arvore(metadados[i].primeiro_bloco, nivel + 1);
