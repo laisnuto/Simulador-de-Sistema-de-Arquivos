@@ -49,7 +49,12 @@ OBSERVAÇÕES E DECISÕES DE PROJETO:
 - A quantidade máxima de blocos foi definida a partir do limite máximo de bytes de um arquivo de 100MB (104857600 bytes). Dessa forma, sendo qtd_blocos o número inteiro máximo da quanditade de blocos num arquivo de 100MB, como o cada posição do bitmap ocupa 1byte e cada posição do fat ocupa 2 bytes e o resto são blocos que ocupam 4096 bytes, então temos que 104857600 bytes = 1 * qtd_blocos + 2 * qtd_blocos + 4096 * qtd_blocos. A partir disso, vimos que a quantidade máxima de blocos possível é 25581.
 - Pelo motivo no item anterior, como essa conta não é exata, o limite máximo do arquivo será 1 * qtd_blocos + 2 * qtd_blocos + 4096 * qtd_blocos, como vimos que qtd_blocos = 25581, então o total de bytes do sistema de arquivos é 4099*25581 = 104.856.519 , que é um pouco abaixo do limite de 104857600.
 
-TESTES:
+
+TESTE VÍDEO:
+Segue o link para o teste
+
+
+TESTES ESPECÍFICOS:
 Os testes foram feitos a partir de um script que caclulava a média de 30 execuções, além disso para gerar todos os comandos necessários para o teste, usei o gerador de comandos fornecido por um dos alunos no fórum de dúvidas.
 
 
