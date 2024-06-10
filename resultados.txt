@@ -1,0 +1,39 @@
+Executando teste de cópia e remoção com vazio e lorem-1M
+Tempo médio para copiar: .002744
+Tempo médio para remover: .002525
+Executando teste de cópia e remoção com vazio e lorem-10M
+Tempo médio para copiar: .016610
+Tempo médio para remover: .008180
+Executando teste de cópia e remoção com vazio e lorem-30M
+Tempo médio para copiar: .084262
+Tempo médio para remover: .020087
+Executando teste de cópia e remoção de hierarquia vazio e cheio vazio e 30niveis-60pornivel
+Tempo médio para 30 niveis: .035058
+Executando teste de cópia e remoção de hierarquia vazio e cheio vazio e 30niveis-vazio
+Tempo médio para 30 niveis: .002569
+Executando teste de cópia e remoção com 10mega e lorem-1M
+Tempo médio para copiar: .004231
+Tempo médio para remover: .002520
+Executando teste de cópia e remoção com 10mega e lorem-10M
+Tempo médio para copiar: .029292
+Tempo médio para remover: .007950
+Executando teste de cópia e remoção com 10mega e lorem-30M
+Tempo médio para copiar: .122581
+Tempo médio para remover: .019994
+Executando teste de cópia e remoção de hierarquia vazio e cheio 10mega e 30niveis-60pornivel
+Tempo médio para 30 niveis: .034032
+Executando teste de cópia e remoção de hierarquia vazio e cheio 10mega e 30niveis-vazio
+Tempo médio para 30 niveis: .002614
+Executando teste de cópia e remoção com 50mega e lorem-1M
+Tempo médio para copiar: .009512
+Tempo médio para remover: .002611
+Executando teste de cópia e remoção com 50mega e lorem-10M
+Tempo médio para copiar: .082708
+Tempo médio para remover: .008159
+Executando teste de cópia e remoção com 50mega e lorem-30M
+Tempo médio para copiar: .280577
+Tempo médio para remover: .020041
+Executando teste de cópia e remoção de hierarquia vazio e cheio 50mega e 30niveis-60pornivel
+Tempo médio para 30 niveis: .032788
+Executando teste de cópia e remoção de hierarquia vazio e cheio 50mega e 30niveis-vazio
+Tempo médio para 30 niveis: .002545

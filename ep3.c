@@ -59,15 +59,15 @@ void imprime_arvore(uint16_t bloco_atual, int nivel) {
                 for (int j = 0; j < nivel; j++) {
                     printf("  "); 
                 }
-                printf("%s", metadados[i].nome);
+                // printf("%s", metadados[i].nome);
                 if (metadados[i].eh_diretorio) {
-
+                    printf("%s", metadados[i].nome);
                     printf("/ \n");
                     imprime_arvore(metadados[i].primeiro_bloco, nivel + 1);
                 }
-                else {
-                    printf("\n");
-                }
+                // else {
+                //     printf("\n");
+                // }
             }
         }
         
@@ -76,6 +76,7 @@ void imprime_arvore(uint16_t bloco_atual, int nivel) {
     }
 }
 
+// Função que paga o nome do arquivo pela ultima string do caminho
 const char* extrair_nome_arquivo(const char* caminho) {
     if (caminho == NULL) {
         return ""; 
@@ -95,7 +96,6 @@ const char* extrair_nome_arquivo(const char* caminho) {
 int acha_arquivo(const char* caminho, uint32_t bloco_atual) {
 
     if (strcmp(caminho, "/") == 0) {
-        printf("Caminho é a raiz. Bloco raiz: %d\n", primeiro_bloco_raiz);
         return primeiro_bloco_raiz;         
     }
 
@@ -193,6 +193,7 @@ void escreve_metadados(uint16_t bloco_inicial, Metadados *meta) {
             bloco_inicial = bloco_livre;
         }
 
+        fat.prox_bloco[bloco_livre] = 0xFFFF;
         bitmap.blocos_livres[bloco_livre] = 1;  
         memset(&buffer, 0, sizeof(buffer));  
         buffer[0] = *meta;  
@@ -204,7 +205,7 @@ void escreve_metadados(uint16_t bloco_inicial, Metadados *meta) {
 
 
 
-
+// Função para encontrar o primeiro bloco do diretório pai
 int encontrar_bloco_diretorio_pai(const char *caminho) {
     int ultima_barra = -1;
 
@@ -344,7 +345,7 @@ void copia(char *origem, char *destino) {
         
     }
 
-    fat.prox_bloco[bloco_livre] = -1;
+    fat.prox_bloco[bloco_livre] = 0xFFFF;
     fclose(arquivo_origem);
     atualiza_fat_bitmap();
    
@@ -364,7 +365,7 @@ void copia(char *origem, char *destino) {
 
 
 
-
+// função que cria um diretório
 void criadir(char *diretorio) {
 
     int arquivo_existente = acha_arquivo(diretorio, primeiro_bloco_raiz);
@@ -400,13 +401,16 @@ void criadir(char *diretorio) {
     escreve_metadados(bloco_pai, &metadados);
 
     bitmap.blocos_livres[bloco_livre] = 1;
+    fat.prox_bloco[bloco_livre] = 0xFFFF;
     
+    printf("Diretório %s criado \n", nome_diretorio);
 
     atualiza_fat_bitmap();
 
 }
 
 
+// Função para apagar metadados do diretório pai de um arquivo apagado
 void apaga_metadados_pai(uint16_t bloco_pai,const char* nome_arquivo_apagado) {
    
    Metadados metadados[MAX_METADATA_PER_BLOCK];
@@ -438,7 +442,7 @@ void apaga_metadados_pai(uint16_t bloco_pai,const char* nome_arquivo_apagado) {
 }
 
 
-
+// Função que reseta os blocos de um arquivo
 void limpa_arquivo(uint16_t bloco_arquivo) {
     uint16_t bloco_atual = bloco_arquivo;
     char bloco_vazio[BLOCK_SIZE] = {0}; 
@@ -455,7 +459,7 @@ void limpa_arquivo(uint16_t bloco_arquivo) {
 
 
 
-
+// função que reseta os blocos de um diretório e tudo que estava dentro dele
 void limpa_diretorio(uint16_t bloco_diretorio) {
     uint16_t bloco_atual = bloco_diretorio;
 
@@ -487,6 +491,7 @@ void limpa_diretorio(uint16_t bloco_diretorio) {
 }
 
 
+// Função para apagar um diretório do sistema de arquivos
 void apagadir(char *diretorio) {
     int bloco_diretorio = acha_arquivo(diretorio, primeiro_bloco_raiz);
     if (bloco_diretorio == -1) {
@@ -509,7 +514,7 @@ void apagadir(char *diretorio) {
 }
 
 
-
+// Função para mostrar o conteúdo de um arquivo
 void mostra(char *arquivo) {
     int bloco_arquivo = acha_arquivo(arquivo, primeiro_bloco_raiz);
     if (bloco_arquivo == -1) {
@@ -517,21 +522,77 @@ void mostra(char *arquivo) {
         return;
     }
 
+    const char* nome = extrair_nome_arquivo(arquivo); 
+    int bloco_pai = encontrar_bloco_diretorio_pai(arquivo);
+
+    if (bloco_pai == -1) {
+        printf("Diretório pai não encontrado.\n");
+        return;
+    }
+
+    Metadados metadados_do_arquivo;
+    int achou = 0;
+
+    while (bloco_pai != 0xFFFF) {
+        Metadados metadados[MAX_METADATA_PER_BLOCK];
+        le_bloco(bloco_pai, &metadados);
+    
+        for (int i = 0; i < MAX_METADATA_PER_BLOCK; i++) {
+            if (strcmp(metadados[i].nome, nome) == 0) {
+                if(metadados[i].eh_diretorio) {
+                    printf("O arquivo %s é um diretório.\n", nome);
+                    return;
+                }
+                metadados_do_arquivo = metadados[i];
+                metadados[i].acessado = time(NULL);  
+                escreve_bloco(bloco_pai, &metadados);
+                achou = 1; 
+                break;
+            }
+        }       
+
+        if (achou) {
+            break;
+        }
+    
+        uint16_t proximo = fat.prox_bloco[bloco_pai];
+
+        bloco_pai = proximo;
+    }
 
 
+
+   if (!achou) {
+        printf("Arquivo %s não encontrado no diretório \n", nome);
+        return;
+    }
+
+  
     char buffer[BLOCK_SIZE + 1];
-    uint16_t bloco_atual = bloco_arquivo;
-    while (bloco_atual != 0xFFFF) {
-        memset(buffer, 0, BLOCK_SIZE + 1);
+    uint16_t bloco_atual = metadados_do_arquivo.primeiro_bloco;
+    int bytes_para_ler = metadados_do_arquivo.tamanho;
+
+    while (bloco_atual != 0xFFFF && bytes_para_ler > 0) {
+        int bytes_neste_bloco;
+        if (bytes_para_ler < BLOCK_SIZE) {
+            bytes_neste_bloco = bytes_para_ler;
+        } else {
+            bytes_neste_bloco = BLOCK_SIZE;
+        }
+
+        memset(buffer, 0, sizeof(buffer));
         le_bloco(bloco_atual, buffer);
-        printf("%s", buffer);
+        printf("%.*s", bytes_neste_bloco, buffer); 
+        bytes_para_ler -= bytes_neste_bloco;
         bloco_atual = fat.prox_bloco[bloco_atual];
     }
+
+
     printf("\n");
 }
 
 
-
+// Função para criar um arquivo vazio dado um caminho
 void cria_arquivo_vazio(char *arquivo) {
     
     int bloco_pai = encontrar_bloco_diretorio_pai(arquivo);
@@ -563,6 +624,7 @@ void cria_arquivo_vazio(char *arquivo) {
 }
 
 
+// Função que atualiza o tempo de acesso de um arquivo se ele existir ou cria um arquivo vazio
 void toca(char *arquivo) {
     int bloco_arquivo = acha_arquivo(arquivo, primeiro_bloco_raiz);
     if (bloco_arquivo == -1) {
@@ -608,6 +670,7 @@ void toca(char *arquivo) {
     }
 }
 
+// Função para apagar um arquivo do sistema de arquivos
 void apaga(char *arquivo) {
    const char* nome_arquivo = extrair_nome_arquivo(arquivo);
     int bloco_arquivo = acha_arquivo(arquivo, primeiro_bloco_raiz);
@@ -628,13 +691,13 @@ void apaga(char *arquivo) {
 
     apaga_metadados_pai(bloco_pai, nome_arquivo);
 
-
+    printf("Arquivo %s apagado.\n", nome_arquivo);
     
     atualiza_fat_bitmap();
 }
 
 
-
+// Função que imprime o tempo no formato
 void imprime_tempo(time_t tempo) {
     char buffer[20];
     struct tm *tm_info = localtime(&tempo);
@@ -642,6 +705,7 @@ void imprime_tempo(time_t tempo) {
     printf("%s    ", buffer);
 }
 
+// Função que lista os arquivos de um diretório
 void lista(char *diretorio) {
     int bloco_diretorio = acha_arquivo(diretorio, 0);
     if (bloco_diretorio == -1) {
@@ -679,6 +743,7 @@ void lista(char *diretorio) {
 }
 
 
+// Função que limpa a lista ligada que representa a árvore de diretórios
 void limpa_db() {
     while (primeiro_no) {
         No *atual = primeiro_no;
@@ -688,6 +753,7 @@ void limpa_db() {
 }
 
 
+// Função que adiciona a lista ligada que representa a árvore de diretórios
 void adiciona_ao_banco_de_dados(const char* caminho, const char* nome) {
     No *novo = malloc(sizeof(No));
     strcpy(novo->caminho, caminho);
@@ -705,7 +771,7 @@ void adiciona_ao_banco_de_dados(const char* caminho, const char* nome) {
     }
 }
 
-
+// Função para atualizar recursivamente a lista ligada que representa a árvore de diretórios
 void atualiza_recursivo(uint16_t bloco_atual, const char* caminho_atual) {
     if (bloco_atual == 0xFFFF) return;
 
@@ -726,6 +792,7 @@ void atualiza_recursivo(uint16_t bloco_atual, const char* caminho_atual) {
 }
 
 
+// Função para atualizar o banco de dados em memória
 void atualizadb() {
     limpa_db();
     char caminho_raiz[] = "";
@@ -734,7 +801,7 @@ void atualizadb() {
 }
 
 
-
+// Função para buscar os caminho arquivo por uma string
 void busca(const char* string) {
     No* atual = primeiro_no;
     while (atual) {
@@ -746,9 +813,8 @@ void busca(const char* string) {
 }
 
 
-
-
-void conta_recursivo(uint16_t bloco_atual, int* total_arquivos, int* total_diretorios) {
+// Função para percorrer a árvore de diretórios e contar arquivos, diretórios e tamanho
+void conta_recursivo(uint16_t bloco_atual, int* total_arquivos, int* total_diretorios, int* total_tamanho) {
     if (bloco_atual == 0xFFFF) return;
 
     Metadados metadados[MAX_METADATA_PER_BLOCK];
@@ -758,49 +824,59 @@ void conta_recursivo(uint16_t bloco_atual, int* total_arquivos, int* total_diret
         if (metadados[i].primeiro_bloco != 0 || metadados[i].tamanho != 0) {
             if (metadados[i].eh_diretorio) {
                 (*total_diretorios)++;
-                conta_recursivo(metadados[i].primeiro_bloco, total_arquivos, total_diretorios);
+                (*total_tamanho) += metadados[i].tamanho;
+                conta_recursivo(metadados[i].primeiro_bloco, total_arquivos, total_diretorios, total_tamanho);
             } else {
                 (*total_arquivos)++;
+                (*total_tamanho) += metadados[i].tamanho;
             }
         }
     }
 }
 
- void status() {
-    int total_arquivos = 0, total_diretorios = 0, espaco_usado = 0, espaco_livre = 0;
+// Função que imprime o status do sistema de arquivos com seus dados
+void status() {
+    int total_arquivos = 0;
+    int total_diretorios = 0;
+    int espaco_usado = 0;
+    int espaco_livre = 0; 
+    int espaco_alocado = 0; 
+    int espaco_desperdicado = 0;
 
     for (int i = 0; i < MAX_BLOCKS; i++) {
         if (bitmap.blocos_livres[i]) {
-            espaco_usado += BLOCK_SIZE;
+            espaco_alocado += BLOCK_SIZE;
         } else {
             espaco_livre += BLOCK_SIZE;
         }
-    }
+    }   
 
-    conta_recursivo(primeiro_bloco_raiz, &total_arquivos, &total_diretorios);
+    conta_recursivo(primeiro_bloco_raiz, &total_arquivos, &total_diretorios, &espaco_usado);
+
+    total_diretorios++;
+
+    espaco_desperdicado = espaco_alocado - espaco_usado;
+
+    espaco_usado += sizeof(FAT) + sizeof(Bitmap) ;
 
     printf("Total de arquivos: %d\n", total_arquivos);
     printf("Total de diretórios: %d\n", total_diretorios);
     printf("Espaço usado: %d bytes\n", espaco_usado);
     printf("Espaço livre: %d bytes\n", espaco_livre);
-
-    int espaco_desperdicado = 0;
-    for (int i = 0; i < MAX_BLOCKS; i++) {
-        if (bitmap.blocos_livres[i]) {
-            // Verifica se há espaço desperdiçado no bloco atual
-            if (fat.prox_bloco[i] != 0xFFFF) {
-                espaco_desperdicado += BLOCK_SIZE - sizeof(Metadados);
-            }
-        }
-    }
     printf("Espaço desperdiçado: %d bytes\n", espaco_desperdicado);
+   
  }
 
 void desmonta() {
+    if (sistema_arquivos == NULL) {
+        printf("Sistema de arquivos não está montado.\n");
+        return;
+    }
+
     fclose(sistema_arquivos);
     sistema_arquivos = NULL;
     limpa_db();
-    printf("O seu sistema de arquivos foi desmontado");
+    printf("O seu sistema de arquivos foi desmontado \n");
 }
 
 
@@ -862,7 +938,9 @@ int main() {
             status();
         }
         else if (strcmp(comando, "sai") == 0) {
-            desmonta();
+            if(sistema_arquivos != NULL) {
+                desmonta();
+            }
             break;
         }
         else {
