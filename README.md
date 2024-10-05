@@ -42,13 +42,8 @@ Já o espaço desperdiçado a partir a partir do espaço total do espaço total 
 - Sai: Desmonta o sistema de arquivos se já não tiver sido feito, dá um break no looping de comandos do sistema de arquivos e encerra o programa.
  
 
-OBSERVAÇÕES E DECISÕES DE PROJETO:
-- O sistema de arquivos não foi proejado para lidar com erros de entrada, então se o usuário passar caminhos inválidos, incompletos, passar parametros que são diretórios quando deveriam ser arquivos e vice versa, não é garantido que o sistema vai funcionar corretamente.
+OBSERVAÇÕES:
 - É muito importante passar como parametro das funções necessárias o caminho completo começando da raiz "/"
-- O tamnho máximo de um nome de arquivo foi definido para que o tamnho da struct de metadados fosse exatamente 256 bytes, isso foi importante pois o bloco tem tamnho 4096 bytes, então cabem exatamente 16 metadados de arquivos diferentes em um mesmo bloco, e assim otimizamos o espaço e facilitamos a manipulação dos dados no bloco
-- A quantidade máxima de blocos foi definida a partir do limite máximo de bytes de um arquivo de 100MB (104857600 bytes). Dessa forma, sendo qtd_blocos o número inteiro máximo da quanditade de blocos num arquivo de 100MB, como o cada posição do bitmap ocupa 1byte e cada posição do fat ocupa 2 bytes e o resto são blocos que ocupam 4096 bytes, então temos que 104857600 bytes = 1 * qtd_blocos + 2 * qtd_blocos + 4096 * qtd_blocos. A partir disso, vimos que a quantidade máxima de blocos possível é 25581.
-- Pelo motivo no item anterior, como essa conta não é exata, o limite máximo do arquivo será 1 * qtd_blocos + 2 * qtd_blocos + 4096 * qtd_blocos, como vimos que qtd_blocos = 25581, então o total de bytes do sistema de arquivos é 4099*25581 = 104.856.519 , que é um pouco abaixo do limite de 104857600.
-
 
 TESTE VÍDEO:
 Segue o link para o teste:
